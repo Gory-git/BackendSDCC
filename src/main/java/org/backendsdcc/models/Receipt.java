@@ -21,8 +21,13 @@ public class Receipt
     @Column(name = "amount", nullable = false)
     private float amount;
 
+    @Column(name = "tax", nullable = false)
+    private float tax;
+
+    @Column(name = "date", nullable = false)
+    private String date;
+
     @ManyToOne(optional = false, cascade = CascadeType.ALL)
     @JoinColumn(name = "user", nullable = false, unique = true)
     private User user;
-
 }
