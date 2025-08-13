@@ -20,6 +20,9 @@ public class User
     @Column(name = "user_id", nullable = false)
     private long id;
 
+    @Column(name = "cf", nullable = false, unique = true, length = 16)
+    private String cf;
+
     @Column(name = "name")
     private String name;
 
@@ -28,6 +31,9 @@ public class User
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
+
+    @Column(name = "phone", nullable = false, unique = true)
+    private String phone;
 
     @Column(name = "birth_date", nullable = false)
     private Date birthDate;

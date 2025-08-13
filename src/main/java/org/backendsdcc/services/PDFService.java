@@ -2,19 +2,16 @@ package org.backendsdcc.services;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
+import org.backendsdcc.models.PaymentMethod;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
-import org.backendsdcc.repositories.ProductRepository;
-import org.backendsdcc.repositories.PurchaseRepository;
-import org.backendsdcc.repositories.ReceiptRepository;
-import org.backendsdcc.repositories.UserRepository;
+import org.backendsdcc.repositories.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,15 +46,15 @@ public class PDFService
 
     @Autowired
     private ReceiptRepository receiptRepository;
-
     @Autowired
     private PurchaseRepository purchaseRepository;
-
     private String documentName;
     @Autowired
     private ProductRepository productRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private PaymentMethodRepository paymentMethodRepository;
 
     private Document generatePDF(Receipt receipt) throws IOException, DocumentException
     {
@@ -114,7 +111,7 @@ public class PDFService
         document.add(table);
     }
 
-    private void getDbData(PdfPTable table, Receipt receipt) throws DocumentException
+    private void getDbData(PdfPTable table, Receipt receipt)
     {
         List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
 
@@ -145,6 +142,9 @@ public class PDFService
                 COURIER_SMALL));
         p2.add(new Paragraph(
                 "Total: " + currencySymbol + receipt.getAmount(),
+                COURIER_SMALL));
+        p2.add(new Paragraph(
+                "Payment: " + currencySymbol + receipt.getPaymentMethod(),
                 COURIER_SMALL));
         leaveEmptyLine(p2, 3);
         p2.setAlignment(Element.ALIGN_MIDDLE);
@@ -231,8 +231,22 @@ public class PDFService
         float tax = Float.parseFloat(stringTokenizer.nextToken());
         stringTokenizer.nextToken();
         float amount = Float.parseFloat(stringTokenizer.nextToken());
+        stringTokenizer.nextToken();
+        String paymentMethod = stringTokenizer.nextToken();
+
         receipt.setTax(tax);
         receipt.setAmount(amount);
+        receipt.setPaymentMethod(paymentMethod);
+        if (!paymentMethod.equals("BONIFICO") && !paymentMethod.equals("CONTANTI") && !paymentMethod.equals("CONTRASSEGNO"))
+        {
+            if (paymentMethodRepository.findByCode(paymentMethod) == null)
+            {
+                PaymentMethod newPaymentMethod = new PaymentMethod();
+                newPaymentMethod.setCode(paymentMethod);
+                newPaymentMethod.setUser(userRepository.findByEmail(userEmail));
+                paymentMethodRepository.save(newPaymentMethod);
+            }
+        }
         receiptRepository.save(receipt);
     }
 

@@ -27,6 +27,9 @@ public class Receipt
     @Column(name = "date", nullable = false)
     private String date;
 
+    @Column(name = "payment_method", nullable = false)
+    private String paymentMethod;
+
     @ManyToOne(optional = false, cascade = CascadeType.ALL)
     @JoinColumn(name = "user", nullable = false)
     private User user;
