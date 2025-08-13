@@ -41,6 +41,7 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     runtimeOnly 'org.postgresql:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'com.itextpdf:itextpdf:5.5.13.4'
 }
 
 tasks.named('test') {

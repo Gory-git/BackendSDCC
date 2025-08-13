@@ -11,7 +11,7 @@ public class Purchase
 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
+    @Column(name = "purchase_id", nullable = false)
     private long id;
 
     @ManyToOne(optional = false, cascade = CascadeType.ALL)

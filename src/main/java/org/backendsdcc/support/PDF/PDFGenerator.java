@@ -1,20 +1,13 @@
-package org.backendsdcc.services;
+package org.backendsdcc.support.PDF;
 
-import com.itextpdf.text.pdf.*;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
+import org.backendsdcc.repositories.ProductRepository;
 import org.backendsdcc.repositories.PurchaseRepository;
 import org.backendsdcc.repositories.ReceiptRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -23,11 +16,27 @@ import com.itextpdf.text.Font;
 import com.itextpdf.text.Image;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.Phrase;
-import org.springframework.web.multipart.MultipartFile;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
 
-@Service
-public class PDFService
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+public class PDFGenerator
 {
+    @Value("${pdfDir}")
+    private String pdfDir;
+
+    @Value("${documentNameDateFormat}")
+    private String documentNameDateFormat;
+
+    @Value("${localDateFormat}")
+    private String localDateFormat;
 
     @Value("${logoImgPath}")
     private String logoImgPath;
@@ -44,9 +53,9 @@ public class PDFService
     @Value("${table.columnNames}")
     private List<String> columnNames;
 
-    private static final Font COURIER = new Font(Font.FontFamily.COURIER, 20, Font.BOLD);
-    private static final Font COURIER_SMALL = new Font(Font.FontFamily.COURIER, 16, Font.BOLD);
-    private static final Font COURIER_SMALL_FOOTER = new Font(Font.FontFamily.COURIER, 12, Font.BOLD);
+    private static Font COURIER = new Font(Font.FontFamily.COURIER, 20, Font.BOLD);
+    private static Font COURIER_SMALL = new Font(Font.FontFamily.COURIER, 16, Font.BOLD);
+    private static Font COURIER_SMALL_FOOTER = new Font(Font.FontFamily.COURIER, 12, Font.BOLD);
 
     @Autowired
     private ReceiptRepository receiptRepository;
@@ -54,20 +63,25 @@ public class PDFService
     @Autowired
     private PurchaseRepository purchaseRepository;
 
-    private String documentName;
+    @Autowired
+    private ProductRepository productRepository;
 
-    private Document generatePDF(Receipt receipt)
+    private String documentName;
+    private Receipt receipt;
+
+    public void generatePDF(long receiptID)
     {
         Document document = new Document();
-        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser() + "_" + receipt.getDate() + ".pdf";
+        receipt = receiptRepository.findReceiptById(receiptID);
+        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getDate() + ".pdf";
         try
         {
             PdfWriter.getInstance(document, new FileOutputStream(documentName));
             document.open();
             addLogo(document);
-            addDocTitle(document, receipt);
-            createTable(document, noOfColumns, receipt);
-            addFooter(document, receipt);
+            addDocTitle(document);
+            createTable(document, noOfColumns, receiptID);
+            addFooter(document);
             document.close();
 
         } catch (FileNotFoundException | DocumentException e)
@@ -75,10 +89,9 @@ public class PDFService
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        return document;
     }
 
-    private void addLogo(com.itextpdf.text.Document document) {
+    private void addLogo(Document document) {
         try {
             Image img = Image.getInstance(logoImgPath);
             img.scalePercent(logoImgScale[0], logoImgScale[1]);
@@ -90,7 +103,7 @@ public class PDFService
         }
     }
 
-    private void addDocTitle(com.itextpdf.text.Document document, Receipt receipt) throws DocumentException {
+    private void addDocTitle(Document document) throws DocumentException {
         Paragraph p1 = new Paragraph();
         leaveEmptyLine(p1, 1);
         p1.add(new Paragraph(documentName, COURIER));
@@ -101,7 +114,7 @@ public class PDFService
         document.add(p1);
     }
 
-    private void createTable(com.itextpdf.text.Document document, int noOfColumns, Receipt receipt) throws DocumentException {
+    private void createTable(Document document, int noOfColumns, long receiptID) throws DocumentException {
         Paragraph paragraph = new Paragraph();
         leaveEmptyLine(paragraph, 3);
         document.add(paragraph);
@@ -116,11 +129,11 @@ public class PDFService
         }
 
         table.setHeaderRows(1);
-        getDbData(table, receipt);
+        getDbData(table, receiptID);
         document.add(table);
     }
 
-    private void getDbData(PdfPTable table, Receipt receipt) throws DocumentException
+    private void getDbData(PdfPTable table, long receiptID) throws DocumentException
     {
         List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
 
@@ -141,9 +154,9 @@ public class PDFService
 
     }
 
-    private void addFooter(Document document, Receipt receipt) throws DocumentException {
+    private void addFooter(Document document) throws DocumentException {
         Paragraph p2 = new Paragraph();
-        leaveEmptyLine(p2, 1);
+        leaveEmptyLine(p2, 3);
         p2.setAlignment(Element.ALIGN_CENTER);
         p2.add(new Paragraph(
                 "Tax:   " + currencySymbol + receipt.getTax(),
@@ -165,35 +178,5 @@ public class PDFService
             paragraph.add(new Paragraph(" "));
         }
     }
-    @Transactional(readOnly = true)
-    public void saveReceiptFromPDF (MultipartFile file) throws IOException // TODO
-    {
-        StringBuilder pdfContent = new StringBuilder();
 
-        // Leggi il PDF
-        PdfReader reader = new PdfReader(file.getInputStream());
-
-        // Itera attraverso le pagine del PDF
-        for (int i = 1; i <= reader.getNumberOfPages(); i++) {
-            pdfContent.append(Arrays.toString(reader.getPageContent(i)));
-        }
-        String receiptCode = "";
-        if (receiptRepository.findReceiptByCode(receiptCode) != null)
-        {
-            throw new RuntimeException("Receipt already exists");
-        }
-
-    }
-
-    @Transactional(readOnly = true)
-    public Document getPDFFromReceiptID(long receiptID)
-    {
-        return getPDFFromReceipt(receiptRepository.findReceiptById(receiptID));
-    }
-
-    @Transactional(readOnly = true)
-    public Document getPDFFromReceipt(Receipt receipt)
-    {
-        return generatePDF(receipt);
-    }
 }

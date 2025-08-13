@@ -12,7 +12,7 @@ public class Receipt
 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", nullable = false)
+    @Column(name = "receipt_id", nullable = false)
     private long id;
 
     @Column(name = "code", nullable = false, unique = true)
