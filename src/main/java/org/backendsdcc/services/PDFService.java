@@ -1,5 +1,6 @@
 package org.backendsdcc.services;
 
+import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
@@ -21,14 +22,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Element;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.Image;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.Phrase;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -66,41 +59,31 @@ public class PDFService
     @Autowired
     private UserRepository userRepository;
 
-    private Document generatePDF(Receipt receipt)
+    private Document generatePDF(Receipt receipt) throws IOException, DocumentException
     {
         Document document = new Document();
         documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser().getEmail() + "_" + receipt.getDate() + ".pdf";
-        try
-        {
-            PdfWriter.getInstance(document, new FileOutputStream(documentName));
-            document.open();
-            addLogo(document);
-            addDocTitle(document, receipt);
-            createTable(document, noOfColumns, receipt);
-            addFooter(document, receipt);
-            document.close();
 
-        } catch (FileNotFoundException | DocumentException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+        PdfWriter.getInstance(document, new FileOutputStream(documentName));
+        document.open();
+        addLogo(document);
+        addDocTitle(document, receipt);
+        createTable(document, noOfColumns, receipt);
+        addFooter(document, receipt);
+        document.close();
         return document;
     }
 
-    private void addLogo(com.itextpdf.text.Document document) {
-        try {
-            Image img = Image.getInstance(logoImgPath);
-            img.scalePercent(logoImgScale[0], logoImgScale[1]);
-            img.setAlignment(Element.ALIGN_RIGHT);
-            document.add(img);
-        } catch (DocumentException | IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
+    private void addLogo(com.itextpdf.text.Document document) throws DocumentException, IOException
+    {
+        Image img = Image.getInstance(logoImgPath);
+        img.scalePercent(logoImgScale[0], logoImgScale[1]);
+        img.setAlignment(Element.ALIGN_RIGHT);
+        document.add(img);
     }
 
-    private void addDocTitle(com.itextpdf.text.Document document, Receipt receipt) throws DocumentException {
+    private void addDocTitle(com.itextpdf.text.Document document, Receipt receipt) throws DocumentException
+    {
         Paragraph p1 = new Paragraph();
         leaveEmptyLine(p1, 1);
         p1.add(new Paragraph(documentName, COURIER));
@@ -111,7 +94,8 @@ public class PDFService
         document.add(p1);
     }
 
-    private void createTable(com.itextpdf.text.Document document, int noOfColumns, Receipt receipt) throws DocumentException {
+    private void createTable(com.itextpdf.text.Document document, int noOfColumns, Receipt receipt) throws DocumentException
+    {
         Paragraph paragraph = new Paragraph();
         leaveEmptyLine(paragraph, 3);
         document.add(paragraph);
@@ -151,7 +135,8 @@ public class PDFService
 
     }
 
-    private void addFooter(Document document, Receipt receipt) throws DocumentException {
+    private void addFooter(Document document, Receipt receipt) throws DocumentException
+    {
         Paragraph p2 = new Paragraph();
         leaveEmptyLine(p2, 1);
         p2.setAlignment(Element.ALIGN_CENTER);
@@ -170,13 +155,15 @@ public class PDFService
         document.add(p2);
     }
 
-    private static void leaveEmptyLine(Paragraph paragraph, int number) {
-        for (int i = 0; i < number; i++) {
+    private static void leaveEmptyLine(Paragraph paragraph, int number)
+    {
+        for (int i = 0; i < number; i++)
+        {
             paragraph.add(new Paragraph(" "));
         }
     }
     @Transactional(readOnly = true)
-    public void saveReceiptFromPDF (MultipartFile file) throws IOException // TODO
+    public void saveReceiptFromPDF (MultipartFile file) throws IOException
     {
         StringBuilder pdfContent = new StringBuilder();
         // Leggi il PDF
@@ -250,13 +237,13 @@ public class PDFService
     }
 
     @Transactional(readOnly = true)
-    public Document getPDFFromReceiptID(long receiptID)
+    public Document getPDFFromReceiptID(long receiptID) throws DocumentException, IOException
     {
         return getPDFFromReceipt(receiptRepository.findReceiptById(receiptID));
     }
 
     @Transactional(readOnly = true)
-    public Document getPDFFromReceipt(Receipt receipt)
+    public Document getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
     {
         return generatePDF(receipt);
     }
