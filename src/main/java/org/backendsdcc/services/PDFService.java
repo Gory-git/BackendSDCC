@@ -1,10 +1,13 @@
 package org.backendsdcc.services;
 
 import com.itextpdf.text.pdf.*;
+import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
+import org.backendsdcc.repositories.ProductRepository;
 import org.backendsdcc.repositories.PurchaseRepository;
 import org.backendsdcc.repositories.ReceiptRepository;
+import org.backendsdcc.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,8 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.StringTokenizer;
+
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -55,11 +61,15 @@ public class PDFService
     private PurchaseRepository purchaseRepository;
 
     private String documentName;
+    @Autowired
+    private ProductRepository productRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     private Document generatePDF(Receipt receipt)
     {
         Document document = new Document();
-        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser() + "_" + receipt.getDate() + ".pdf";
+        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser().getEmail() + "_" + receipt.getDate() + ".pdf";
         try
         {
             PdfWriter.getInstance(document, new FileOutputStream(documentName));
@@ -169,7 +179,6 @@ public class PDFService
     public void saveReceiptFromPDF (MultipartFile file) throws IOException // TODO
     {
         StringBuilder pdfContent = new StringBuilder();
-
         // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
 
@@ -177,12 +186,67 @@ public class PDFService
         for (int i = 1; i <= reader.getNumberOfPages(); i++) {
             pdfContent.append(Arrays.toString(reader.getPageContent(i)));
         }
-        String receiptCode = "";
+
+        StringTokenizer stringTokenizer = new StringTokenizer(pdfContent.toString(), " _\n\t"+currencySymbol);
+
+        stringTokenizer.nextToken();
+        String receiptCode = stringTokenizer.nextToken();
+
         if (receiptRepository.findReceiptByCode(receiptCode) != null)
         {
             throw new RuntimeException("Receipt already exists");
         }
 
+        String userEmail = stringTokenizer.nextToken();
+        String date = stringTokenizer.nextToken();
+        stringTokenizer.nextToken(); // product code
+        stringTokenizer.nextToken(); // product name
+        stringTokenizer.nextToken(); // product quantity
+        stringTokenizer.nextToken(); // product price
+        stringTokenizer.nextToken(); // total price
+
+        List<Product> products = new ArrayList<>();
+        List<Purchase> purchases = new ArrayList<>();
+
+        Receipt receipt = new Receipt();
+        receipt.setCode(receiptCode);
+        receipt.setDate(date);
+        receipt.setUser(userRepository.findByEmail(userEmail));
+
+        while (stringTokenizer.hasMoreTokens())
+        {
+            String productCode = stringTokenizer.nextToken();
+            if  (productCode.equals("Tax:"))
+                break;
+            String productName = stringTokenizer.nextToken();
+            int quantity = Integer.parseInt(stringTokenizer.nextToken());
+            float price = Float.parseFloat(stringTokenizer.nextToken());
+            float total = Float.parseFloat(stringTokenizer.nextToken());
+
+            if (productRepository.findByCode(productCode) == null)
+            {
+                Product product = new Product();
+                product.setCode(productCode);
+                product.setName(productName);
+                productRepository.save(product);
+            }
+            Product product = productRepository.findByCode(productCode);
+            products.add(product);
+
+            Purchase purchase = new Purchase();
+            purchase.setReceipt(receipt);
+            purchase.setProduct(product);
+            purchase.setQuantity(quantity);
+            purchase.setPrice(price);
+            purchaseRepository.save(purchase);
+            purchases.add(purchase);
+        }
+        float tax = Float.parseFloat(stringTokenizer.nextToken());
+        stringTokenizer.nextToken();
+        float amount = Float.parseFloat(stringTokenizer.nextToken());
+        receipt.setTax(tax);
+        receipt.setAmount(amount);
+        receiptRepository.save(receipt);
     }
 
     @Transactional(readOnly = true)

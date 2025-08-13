@@ -28,6 +28,6 @@ public class Receipt
     private String date;
 
     @ManyToOne(optional = false, cascade = CascadeType.ALL)
-    @JoinColumn(name = "user", nullable = false, unique = true)
+    @JoinColumn(name = "user", nullable = false)
     private User user;
 }

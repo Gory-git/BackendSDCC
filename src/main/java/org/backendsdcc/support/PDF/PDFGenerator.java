@@ -108,8 +108,8 @@ public class PDFGenerator
         leaveEmptyLine(p1, 1);
         p1.add(new Paragraph(documentName, COURIER));
         p1.setAlignment(Element.ALIGN_CENTER);
-        leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph("Receipt issued on" + receipt.getDate(), COURIER_SMALL));
+//        leaveEmptyLine(p1, 1);
+//        p1.add(new Paragraph("Receipt issued on" + receipt.getDate(), COURIER_SMALL));
 
         document.add(p1);
     }
