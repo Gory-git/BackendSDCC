@@ -7,14 +7,13 @@ import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.repositories.*;
+import static org.backendsdcc.support.pdf.PDF.generatePDF;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -25,30 +24,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class PDFService
 {
 
-    @Value("${logoImgPath}")
-    private String logoImgPath;
-
-    @Value("${logoImgScale}")
-    private Float[] logoImgScale;
 
     @Value("${currencySymbol:}")
     private String currencySymbol;
-
-    @Value("${table_noOfColumns}")
-    private int noOfColumns;
-
-    @Value("${table.columnNames}")
-    private List<String> columnNames;
-
-    private static final Font COURIER = new Font(Font.FontFamily.COURIER, 20, Font.BOLD);
-    private static final Font COURIER_SMALL = new Font(Font.FontFamily.COURIER, 16, Font.BOLD);
-    private static final Font COURIER_SMALL_FOOTER = new Font(Font.FontFamily.COURIER, 12, Font.BOLD);
-
     @Autowired
     private ReceiptRepository receiptRepository;
     @Autowired
     private PurchaseRepository purchaseRepository;
-    private String documentName;
     @Autowired
     private ProductRepository productRepository;
     @Autowired
@@ -56,118 +38,20 @@ public class PDFService
     @Autowired
     private PaymentMethodRepository paymentMethodRepository;
 
-    private Document generatePDF(Receipt receipt) throws IOException, DocumentException
-    {
-        Document document = new Document();
-        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser().getEmail() + "_" + receipt.getDate() + ".pdf";
 
-        PdfWriter.getInstance(document, new FileOutputStream(documentName));
-        document.open();
-        addLogo(document);
-        addDocTitle(document, receipt);
-        createTable(document, noOfColumns, receipt);
-        addFooter(document, receipt);
-        document.close();
-        return document;
-    }
 
-    private void addLogo(com.itextpdf.text.Document document) throws DocumentException, IOException
-    {
-        Image img = Image.getInstance(logoImgPath);
-        img.scalePercent(logoImgScale[0], logoImgScale[1]);
-        img.setAlignment(Element.ALIGN_RIGHT);
-        document.add(img);
-    }
 
-    private void addDocTitle(com.itextpdf.text.Document document, Receipt receipt) throws DocumentException
-    {
-        Paragraph p1 = new Paragraph();
-        leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph(documentName, COURIER));
-        p1.setAlignment(Element.ALIGN_CENTER);
-        leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph("Receipt issued on" + receipt.getDate(), COURIER_SMALL));
-
-        document.add(p1);
-    }
-
-    private void createTable(com.itextpdf.text.Document document, int noOfColumns, Receipt receipt) throws DocumentException
-    {
-        Paragraph paragraph = new Paragraph();
-        leaveEmptyLine(paragraph, 3);
-        document.add(paragraph);
-
-        PdfPTable table = new PdfPTable(noOfColumns);
-
-        for(int i=0; i<noOfColumns; i++) {
-            PdfPCell cell = new PdfPCell(new Phrase(columnNames.get(i)));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBackgroundColor(BaseColor.CYAN);
-            table.addCell(cell);
-        }
-
-        table.setHeaderRows(1);
-        getDbData(table, receipt);
-        document.add(table);
-    }
-
-    private void getDbData(PdfPTable table, Receipt receipt)
-    {
-        List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
-
-        for (Purchase purchase : purchases)
-        {
-
-            table.setWidthPercentage(100);
-            table.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
-            table.getDefaultCell().setVerticalAlignment(Element.ALIGN_MIDDLE);
-
-            table.addCell(purchase.getProduct().getCode());
-            table.addCell(purchase.getProduct().getName());
-            table.addCell(String.valueOf(purchase.getQuantity()));
-            table.addCell(currencySymbol + purchase.getPrice());
-            float total = purchase.getQuantity() * purchase.getPrice();
-            table.addCell(currencySymbol + total);
-        }
-
-    }
-
-    private void addFooter(Document document, Receipt receipt) throws DocumentException
-    {
-        Paragraph p2 = new Paragraph();
-        leaveEmptyLine(p2, 1);
-        p2.setAlignment(Element.ALIGN_CENTER);
-        p2.add(new Paragraph(
-                "Tax:   " + currencySymbol + receipt.getTax(),
-                COURIER_SMALL));
-        p2.add(new Paragraph(
-                "Total: " + currencySymbol + receipt.getAmount(),
-                COURIER_SMALL));
-        p2.add(new Paragraph(
-                "Payment: " + currencySymbol + receipt.getPaymentMethod(),
-                COURIER_SMALL));
-        leaveEmptyLine(p2, 3);
-        p2.setAlignment(Element.ALIGN_MIDDLE);
-        p2.add(new Paragraph(
-                "End Of " + documentName,
-                COURIER_SMALL_FOOTER));
-
-        document.add(p2);
-    }
-
-    private static void leaveEmptyLine(Paragraph paragraph, int number)
-    {
-        for (int i = 0; i < number; i++)
-        {
-            paragraph.add(new Paragraph(" "));
-        }
-    }
     @Transactional(readOnly = true)
-    public void saveReceiptFromPDF (MultipartFile file) throws IOException
+    public void saveReceiptFromUniformPDF (MultipartFile file) throws IOException
     {
         StringBuilder pdfContent = new StringBuilder();
         // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
+
+        if (reader.getInfo().containsKey("author") &&  !reader.getInfo().get("author").equals("SDCC_GEN"))
+        {
+            throw new RuntimeException("Receipt incorrectly formatted");
+        }
 
         // Itera attraverso le pagine del PDF
         for (int i = 1; i <= reader.getNumberOfPages(); i++) {
@@ -192,8 +76,8 @@ public class PDFService
         stringTokenizer.nextToken(); // product price
         stringTokenizer.nextToken(); // total price
 
-        List<Product> products = new ArrayList<>();
-        List<Purchase> purchases = new ArrayList<>();
+//        List<Product> products = new ArrayList<>();
+//        List<Purchase> purchases = new ArrayList<>();
 
         Receipt receipt = new Receipt();
         receipt.setCode(receiptCode);
@@ -218,7 +102,7 @@ public class PDFService
                 productRepository.save(product);
             }
             Product product = productRepository.findByCode(productCode);
-            products.add(product);
+//            products.add(product);
 
             Purchase purchase = new Purchase();
             purchase.setReceipt(receipt);
@@ -226,7 +110,7 @@ public class PDFService
             purchase.setQuantity(quantity);
             purchase.setPrice(price);
             purchaseRepository.save(purchase);
-            purchases.add(purchase);
+//            purchases.add(purchase);
         }
         float tax = Float.parseFloat(stringTokenizer.nextToken());
         stringTokenizer.nextToken();
@@ -237,7 +121,7 @@ public class PDFService
         receipt.setTax(tax);
         receipt.setAmount(amount);
         receipt.setPaymentMethod(paymentMethod);
-        if (!paymentMethod.equals("BONIFICO") && !paymentMethod.equals("CONTANTI") && !paymentMethod.equals("CONTRASSEGNO"))
+        if (!paymentMethod.equals("BONIFICO") && !paymentMethod.equals("CONTANTI") /*&& !paymentMethod.equals("CONTRASSEGNO")*/)
         {
             if (paymentMethodRepository.findByCode(paymentMethod) == null)
             {
@@ -251,14 +135,18 @@ public class PDFService
     }
 
     @Transactional(readOnly = true)
-    public Document getPDFFromReceiptID(long receiptID) throws DocumentException, IOException
+    public Document getPDFFromReceiptCode(String code) throws DocumentException, IOException
     {
-        return getPDFFromReceipt(receiptRepository.findReceiptById(receiptID));
+        return getPDFFromReceipt(receiptRepository.findReceiptByCode(code));
     }
 
     @Transactional(readOnly = true)
     public Document getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
     {
-        return generatePDF(receipt);
+        List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
+        return generatePDF(receipt, purchases);
     }
+
+    // TODO lettura pdf generico
+    // TODO conservazione pdf sul db
 }

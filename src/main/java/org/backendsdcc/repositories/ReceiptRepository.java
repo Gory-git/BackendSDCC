@@ -10,13 +10,13 @@ import java.util.List;
 
 public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 {
-    Receipt findReceiptById(long id);
+    List<Receipt> findByUser(User user);
 
     Receipt findReceiptByCode(String code);
 
     List<Receipt> findReceiptByUser(User user);
 
-    List<Receipt> findReceiptByDate(Date date);
+    List<Receipt> findReceiptByDate(String date);
 
     List<Receipt> findReceiptByAmountLessThan(float amount);
 

@@ -14,12 +14,12 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long>
 {
     Purchase findById(long id);
 
-    List<Purchase> findByUser(User user);
+    List<Purchase> findByReceipt_User(User user);
 
     List<Purchase> findByReceipt(Receipt receipt);
 
     List<Purchase> findPurchaseByProduct(Product product);
 
-    List<Purchase> findPurchaseByUserAndProduct(User user, Product product);
+    List<Purchase> findPurchaseByReceipt_UserAndProduct(User user, Product product);
 
 }
