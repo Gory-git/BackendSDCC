@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
 import java.util.List;
 
 @Getter
@@ -14,9 +15,10 @@ public class ReceiptDTO
     private String code;
     private float amount;
     private float tax;
-    private String date;
+    private Date date;
     private String paymentMethod;
     private String userEmail;
     private List<ProductDTO> products;
     private List<Integer> quantities;
+    private List<Float> prices;
 }

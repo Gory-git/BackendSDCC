@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Date;
+
 @Getter
 @Setter
 @Entity
@@ -25,12 +27,12 @@ public class Receipt
     private float tax;
 
     @Column(name = "date", nullable = false)
-    private String date;
+    private Date date;
 
     @Column(name = "payment_method", nullable = false)
     private String paymentMethod;
 
     @ManyToOne(optional = false, cascade = CascadeType.ALL)
-    @JoinColumn(name = "user", nullable = false)
+    @JoinColumn(name = "associated_user", nullable = false)
     private User user;
 }

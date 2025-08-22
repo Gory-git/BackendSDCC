@@ -14,9 +14,15 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 
     Receipt findReceiptByCode(String code);
 
-    List<Receipt> findReceiptByUser(User user);
+    List<Receipt> findReceiptsByUserAndDateBetween(User user, Date dateMin, Date dateMax);
 
-    List<Receipt> findReceiptByDate(String date);
+    List<Receipt> findByUserEmailLike(String email);
+
+    List<Receipt> findByUserEmailContains(String email);
+
+    List<Receipt> findByCodeLike(String code);
+
+    List<Receipt> findByCodeContains(String code);
 
     List<Receipt> findReceiptByAmountLessThan(float amount);
 

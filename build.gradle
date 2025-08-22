@@ -42,6 +42,7 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'com.itextpdf:itextpdf:5.5.13.4'
+    implementation 'org.apache.commons:commons-text:1.14.0'
 }
 
 tasks.named('test') {

@@ -18,5 +18,5 @@ public class SmartQueryService
     @Autowired
     private PaymentMethodRepository paymentMethodRepository;
 
-
+    // TODO
 }

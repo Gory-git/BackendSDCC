@@ -15,8 +15,7 @@ import java.util.List;
 
 public class PDF
 {
-    @Value("${currencySymbol:}")
-    private static String currencySymbol;
+    private final static String currencySymbol = "€";
 
     @Value("${table_noOfColumns}")
     private static int noOfColumns;

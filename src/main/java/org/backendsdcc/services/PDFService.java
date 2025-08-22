@@ -8,6 +8,8 @@ import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.repositories.*;
 import static org.backendsdcc.support.pdf.PDF.generatePDF;
+
+import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -23,10 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class PDFService
 {
-
-
-    @Value("${currencySymbol:}")
-    private String currencySymbol;
+    private final static String currencySymbol = "€";
     @Autowired
     private ReceiptRepository receiptRepository;
     @Autowired
@@ -37,8 +37,6 @@ public class PDFService
     private UserRepository userRepository;
     @Autowired
     private PaymentMethodRepository paymentMethodRepository;
-
-
 
 
     @Transactional(readOnly = true)
@@ -69,7 +67,11 @@ public class PDFService
         }
 
         String userEmail = stringTokenizer.nextToken();
-        String date = stringTokenizer.nextToken();
+        String stringDate = stringTokenizer.nextToken();
+
+
+        Date date = DateValidator.parse(stringDate);
+
         stringTokenizer.nextToken(); // product code
         stringTokenizer.nextToken(); // product name
         stringTokenizer.nextToken(); // product quantity

@@ -3,6 +3,7 @@ package org.backendsdcc.services;
 import org.backendsdcc.models.PaymentMethod;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.UserRepository;
+import org.backendsdcc.support.dto.PaymentMethodDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,14 +29,26 @@ public class UserService
     }
 
     @Transactional(readOnly = true)
-    public void addUser(User user)
+    public void addUser()
     {
         // TODO ADD A NEW USER
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentMethod> getPaymentMethods()
+    public List<PaymentMethodDTO> getPaymentMethods()
     {
         return null;
+    }
+
+    @Transactional(readOnly = true)
+    public void addPaymentMethod(PaymentMethodDTO pm)
+    {
+
+    }
+
+    @Transactional(readOnly = true)
+    public void removePaymentMethod(PaymentMethodDTO pm)
+    {
+
     }
 }

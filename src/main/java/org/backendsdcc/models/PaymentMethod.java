@@ -19,6 +19,6 @@ public class PaymentMethod
     private String code;
 
     @ManyToOne(optional = false, cascade = CascadeType.ALL)
-    @JoinColumn(name = "user", nullable = false)
+    @JoinColumn(name = "associated_user", nullable = false)
     private User user;
 }
