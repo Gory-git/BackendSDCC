@@ -3,8 +3,8 @@ package org.backendsdcc.models;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -15,24 +15,25 @@ public class Receipt
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "receipt_id", nullable = false)
-    private long id;
+    private Long id;
 
     @Column(name = "code", nullable = false, unique = true)
     private String code;
 
-    @Column(name = "amount", nullable = false)
-    private float amount;
+    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
 
-    @Column(name = "tax", nullable = false)
-    private float tax;
+    @Column(name = "tax", nullable = false, precision = 10, scale = 2)
+    private BigDecimal tax;
 
     @Column(name = "date", nullable = false)
-    private Date date;
+    private Instant date;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", nullable = false)
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
 
-    @ManyToOne(optional = false, cascade = CascadeType.ALL)
-    @JoinColumn(name = "associated_user", nullable = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 }

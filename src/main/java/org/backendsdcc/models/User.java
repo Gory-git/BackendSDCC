@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 
+import java.time.Instant;
 import java.util.Date;
 
 @Getter
@@ -17,25 +18,25 @@ public class User
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id", nullable = false)
-    private long id;
+    private Long id;
 
     @Column(name = "cf", nullable = false, unique = true, length = 16)
     private String cf;
 
-    @Column(name = "name")
+    @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "surname")
+    @Column(name = "surname", nullable = false)
     private String surname;
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "phone", nullable = false, unique = true)
+    @Column(name = "phone", nullable = false, unique = true , length = 20)
     private String phone;
 
     @Column(name = "birth_date", nullable = false)
-    private Date birthDate;
+    private Instant birthDate;
 
     @Column(name = "password", nullable = false)
     private String password;
@@ -45,9 +46,9 @@ public class User
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreatedDate
-    private Date createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at")
     @LastModifiedDate
-    private Date updatedAt;
+    private Instant updatedAt;
 }

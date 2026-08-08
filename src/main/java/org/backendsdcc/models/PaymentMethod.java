@@ -1,24 +1,14 @@
 package org.backendsdcc.models;
 
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
-@Entity
-@Table(name = "payment_method")
-public class PaymentMethod
-{
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(nullable = false)
-    private Long id;
-
-    @Column(name = "code", nullable = false, unique = true, length = 4)
-    private String code;
-
-    @ManyToOne(optional = false, cascade = CascadeType.ALL)
-    @JoinColumn(name = "associated_user", nullable = false)
-    private User user;
+/**
+ * Metodi di pagamento supportati dal sistema.
+ * Salvati come stringa nel DB (EnumType.STRING) per leggibilità
+ * e resistenza al riordino dei valori.
+ */
+public enum PaymentMethod {
+    CASH,
+    CREDIT_CARD,
+    DEBIT_CARD,
+    PAYPAL,
+    BANK_TRANSFER
 }
