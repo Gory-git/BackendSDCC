@@ -2,23 +2,20 @@ package org.backendsdcc.support.dto;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.stereotype.Component;
-
-import java.util.Date;
+import org.backendsdcc.models.PaymentMethod;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Getter
 @Setter
-@Component
 public class ReceiptDTO
 {
     private String code;
-    private float amount;
-    private float tax;
-    private Date date;
-    private String paymentMethod;
+    private BigDecimal amount;
+    private BigDecimal tax;
+    private Instant date;
+    private PaymentMethod paymentMethod;
     private String userEmail;
-    private List<ProductDTO> products;
-    private List<Integer> quantities;
-    private List<Float> prices;
+    private List<ReceiptLineDTO> lines;
 }

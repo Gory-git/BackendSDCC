@@ -5,7 +5,8 @@ import org.backendsdcc.models.User;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Date;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 public interface ReceiptRepository extends JpaRepository<Receipt, Long>
@@ -14,7 +15,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 
     Receipt findReceiptByCode(String code);
 
-    List<Receipt> findReceiptsByUserAndDateBetween(User user, Date dateMin, Date dateMax);
+    List<Receipt> findReceiptsByUserAndDateBetween(User user, Instant dateMin, Instant dateMax);
 
     List<Receipt> findByUserEmailLike(String email);
 
@@ -24,11 +25,11 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 
     List<Receipt> findByCodeContains(String code);
 
-    List<Receipt> findReceiptByAmountLessThan(float amount);
+    List<Receipt> findReceiptByAmountLessThan(BigDecimal amount);
 
-    List<Receipt> findReceiptByAmountGreaterThan(float amount);
+    List<Receipt> findReceiptByAmountGreaterThan(BigDecimal amount);
 
-    List<Receipt> findReceiptByAmountEquals(float amount);
+    List<Receipt> findReceiptByAmountEquals(BigDecimal amount);
 
-    List<Receipt> findReceiptByAmountBetween(float amount1, float amount2);
+    List<Receipt> findReceiptByAmountBetween(BigDecimal amount1, BigDecimal amount2);
 }

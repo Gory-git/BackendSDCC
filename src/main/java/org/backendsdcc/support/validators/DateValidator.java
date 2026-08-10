@@ -1,57 +1,49 @@
 package org.backendsdcc.support.validators;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.sql.Date;
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.StringTokenizer;
-
 public class DateValidator
 {
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH:mm:ss");
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH:mm:ss");
+
+    private static final Instant MIN_INSTANT = Instant.parse("2025-01-01T08:30:00.00Z");
+
+    private DateValidator() {}
 
     public static boolean isValid(String date)
     {
-        StringTokenizer stringTokenizer = new StringTokenizer(date, "-:");
-        if (stringTokenizer.countTokens() != 6)
+        if (date == null || date.isBlank())
             return false;
-        String year = stringTokenizer.nextToken();
-        if (year.length() != 4)
+        Instant instant;
+        try
+        {
+            instant = Instant.parse(date);
+        } catch (DateTimeException e)
+        {
             return false;
-        String month = stringTokenizer.nextToken();
-        if (month.length() != 2 || Integer.parseInt(month) > 12 ||  Integer.parseInt(month) <= 0)
-            return false;
-        String day = stringTokenizer.nextToken();
-        if (day.length() != 2 || Integer.parseInt(day) > 31 ||  Integer.parseInt(day) <= 0) // TODO gestire meglio
-            return false;
-        String hour = stringTokenizer.nextToken();
-        if (hour.length() != 2 || Integer.parseInt(hour) >= 24 || Integer.parseInt(hour) < 0)
-            return false;
-        String minute = stringTokenizer.nextToken();
-        if (minute.length() != 2 || Integer.parseInt(minute) >= 60 || Integer.parseInt(minute) < 0)
-            return false;
-        String second = stringTokenizer.nextToken();
-        if (second.length() != 2 || Integer.parseInt(second) >= 60 ||   Integer.parseInt(second) < 0)
-            return false;
-
-        LocalDateTime dateTime = LocalDateTime.parse(date, formatter);
-        LocalDateTime minTime = LocalDateTime.parse("2025-01-01-08:30:00", formatter);
-        return !dateTime.isAfter(LocalDateTime.now()) && !dateTime.isBefore(minTime);
+        }
+        return isValid(instant);
     }
 
-    public static boolean isValid(Date date)
+    public static boolean isValid(Instant instant)
     {
-        if (date == null)
+        if (instant == null)
             return false;
-        return isValid(date.toString());
+        Instant now = Instant.now();
+        return !instant.isAfter(now) && !instant.isBefore(MIN_INSTANT);
     }
 
-    public static Date parse(String date)
+    public static Instant parse(String date)
     {
-        if (isValid(date))
-            throw new RuntimeException("Invalid date");
+        if (!isValid(date))
+            throw new IllegalArgumentException(
+                    "Data non valida o fuori range: '" + date + "'. " +
+                            "Formato atteso: yyyy-MM-dd'T'HH:mm:ss'Z' " +
+                            "(es. 2025-06-15T14:30:00Z)"
+            );
 
-        LocalDateTime dateTime = LocalDateTime.parse(date, formatter);
-        return Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+        return Instant.parse(date);
     }
 }

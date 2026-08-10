@@ -19,13 +19,13 @@ public class Purchase
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "quantity", nullable = false, precision = 10, scale = 2)
-    private BigDecimal quantity;
+    @Column(name = "quantity", nullable = false)
+    private int quantity;
 
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "receipt_ids", nullable = false)
+    @JoinColumn(name = "receipt_id", nullable = false)
     private Receipt receipt;
 }

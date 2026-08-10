@@ -16,8 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -70,7 +71,7 @@ public class PDFService
         String stringDate = stringTokenizer.nextToken();
 
 
-        Date date = DateValidator.parse(stringDate);
+        Instant date = DateValidator.parse(stringDate);
 
         stringTokenizer.nextToken(); // product code
         stringTokenizer.nextToken(); // product name
@@ -93,8 +94,8 @@ public class PDFService
                 break;
             String productName = stringTokenizer.nextToken();
             int quantity = Integer.parseInt(stringTokenizer.nextToken());
-            float price = Float.parseFloat(stringTokenizer.nextToken());
-            float total = Float.parseFloat(stringTokenizer.nextToken());
+            BigDecimal price = new BigDecimal(stringTokenizer.nextToken());
+            BigDecimal total = new BigDecimal(stringTokenizer.nextToken());
 
             if (productRepository.findByCode(productCode) == null)
             {
@@ -114,25 +115,16 @@ public class PDFService
             purchaseRepository.save(purchase);
 //            purchases.add(purchase);
         }
-        float tax = Float.parseFloat(stringTokenizer.nextToken());
+        BigDecimal tax = new BigDecimal(stringTokenizer.nextToken());
         stringTokenizer.nextToken();
-        float amount = Float.parseFloat(stringTokenizer.nextToken());
+        BigDecimal amount = new BigDecimal(stringTokenizer.nextToken());
         stringTokenizer.nextToken();
-        String paymentMethod = stringTokenizer.nextToken();
+        PaymentMethod paymentMethod = PaymentMethod.valueOf(stringTokenizer.nextToken());
 
         receipt.setTax(tax);
         receipt.setAmount(amount);
         receipt.setPaymentMethod(paymentMethod);
-        if (!paymentMethod.equals("BONIFICO") && !paymentMethod.equals("CONTANTI") /*&& !paymentMethod.equals("CONTRASSEGNO")*/)
-        {
-            if (paymentMethodRepository.findByCode(paymentMethod) == null)
-            {
-                PaymentMethod newPaymentMethod = new PaymentMethod();
-                newPaymentMethod.setCode(paymentMethod);
-                newPaymentMethod.setUser(userRepository.findByEmail(userEmail));
-                paymentMethodRepository.save(newPaymentMethod);
-            }
-        }
+
         receiptRepository.save(receipt);
     }
 

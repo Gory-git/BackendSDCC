@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.commons.text.similarity.FuzzyScore;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -98,11 +100,11 @@ public class ReceiptService
             throw new RuntimeException("A receipt with this code already exists");
         receipt.setCode(receiptDTO.getCode());
 
-        if (receiptDTO.getAmount() <= 0)
+        if (receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
             throw new RuntimeException("Receipt amount not valid");
         receipt.setAmount(receiptDTO.getAmount());
 
-        if (receiptDTO.getTax() <= 0 ||  receiptDTO.getTax() >= receiptDTO.getAmount())
+        if (receiptDTO.getTax().compareTo(BigDecimal.ZERO) <= 0 || receiptDTO.getTax().compareTo(receiptDTO.getAmount()) >= 0)
             throw new RuntimeException("Receipt taxes not valid");
         receipt.setAmount(receiptDTO.getTax());
 
@@ -114,31 +116,16 @@ public class ReceiptService
 
         if (receiptDTO.getPaymentMethod() == null)
             throw new RuntimeException("Receipt payment method not valid");
-        if (!receiptDTO.getPaymentMethod().equals("CONTANTI") && !receiptDTO.getPaymentMethod().equals("BONIFICO") && receiptDTO.getPaymentMethod().length() != 4)
-            throw new RuntimeException("Receipt payment method not valid");
-        if (receiptDTO.getPaymentMethod().length() == 4)
-        {
-            boolean find = false;
-            List<PaymentMethod> paymentMethods = paymentMethodRepository.findByUser(receipt.getUser());
-            for (PaymentMethod paymentMethod : paymentMethods)
-                if (paymentMethod.getCode().equals(receiptDTO.getPaymentMethod()))
-                {
-                    find = true;
-                    break;
-                }
-            if (!find)
-                throw new RuntimeException("Unknown payment method");
-        }
         receipt.setPaymentMethod(receiptDTO.getPaymentMethod());
 
-        Date date = receiptDTO.getDate();
+        Instant date = receiptDTO.getDate();
         if (!DateValidator.isValid(date))
             throw new RuntimeException("Receipt date not valid");
         receipt.setDate(date);
 
         List<ProductDTO> products = receiptDTO.getProducts();
         List<Integer> quantities = receiptDTO.getQuantities();
-        List<Float> prices = receiptDTO.getPrices();
+        List<BigDecimal> prices = receiptDTO.getPrices();
 
         if (products == null || products.isEmpty())
             throw new RuntimeException("No products found");
@@ -147,27 +134,27 @@ public class ReceiptService
         if (prices == null || prices.isEmpty())
             throw new RuntimeException("No prices found");
 
-        float total = 0;
+        BigDecimal total = BigDecimal.ZERO;
         for (int i = 0; i < products.size(); i++)
         {
             ProductDTO productDTO = products.get(i);
             int quantity = quantities.get(i);
-            float price = prices.get(i);
+            BigDecimal price = prices.get(i);
 
             if (productDTO == null)
                 throw new RuntimeException("Product not found");
             if (quantity <= 0)
                 throw new RuntimeException("Quantity not valid");
-            if (price <= 0)
+            if (price.compareTo(BigDecimal.ZERO) <= 0)
                 throw new RuntimeException("Price not valid");
 
             if (productRepository.findByCode(productDTO.getCode()) == null)
                 productService.addProduct(productDTO);
             if (productRepository.findByCode(productDTO.getCode()) != null)
             {
-                total += price * quantity;
+                total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
-                if (total >= receipt.getAmount())
+                if (total.compareTo(receipt.getAmount()) >= 0)
                     throw new RuntimeException("Receipt amount not valid");
 
                 Purchase purchase = new Purchase();
@@ -179,7 +166,7 @@ public class ReceiptService
             }
         }
 
-        if (total != receipt.getAmount())
+        if (total.compareTo(receipt.getAmount()) != 0)
             throw new RuntimeException("Receipt amount not valid");
 
         receiptRepository.save(receipt);

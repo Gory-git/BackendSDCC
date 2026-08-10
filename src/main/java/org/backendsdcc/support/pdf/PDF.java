@@ -6,11 +6,11 @@ import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
-import org.backendsdcc.repositories.PurchaseRepository;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 
 public class PDF
@@ -89,9 +89,9 @@ public class PDF
             table.addCell(purchase.getProduct().getCode());
             table.addCell(purchase.getProduct().getName());
             table.addCell(String.valueOf(purchase.getQuantity()));
-            table.addCell(currencySymbol + purchase.getPrice());
-            float total = purchase.getQuantity() * purchase.getPrice();
-            table.addCell(currencySymbol + total);
+            table.addCell(currencySymbol + purchase.getPrice().toString());
+            BigDecimal total = BigDecimal.valueOf(purchase.getQuantity()).multiply(purchase.getPrice());
+            table.addCell(currencySymbol + total.toString());
         }
     }
 

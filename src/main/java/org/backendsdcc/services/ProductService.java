@@ -11,6 +11,7 @@ import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -49,23 +50,21 @@ public class ProductService
     }
 
     @Transactional(readOnly = true)
-    public ProductDTO getMostBoughtProductOfTheMonth(String userEmail, Date date)
+    public ProductDTO getMostBoughtProductOfTheMonth(String userEmail, Instant date)
     {
         if (!DateValidator.isValid(date))
             throw new RuntimeException("Invalid date given");
         Calendar cal = Calendar.getInstance();
-        cal.setTime(date);
+        cal.setTime(Date.from(date));
         cal.set(cal.get(Calendar.YEAR) + 1900, cal.get(Calendar.MONTH), 1);
-        Date dateMin = cal.getTime();
-        cal.add(Calendar.MONTH, 1);
-        cal.add(Calendar.DATE, -1);
-        Date dateMax = cal.getTime();
+        Instant dateMin = cal.toInstant();
+        Instant dateMax = cal.toInstant();
 
         return getMostBoughtProductOfTimeSpan(userEmail, dateMin, dateMax);
     }
 
     @Transactional(readOnly = true)
-    public ProductDTO getMostBoughtProductOfTimeSpan(String userEmail, Date dateMin, Date dateMax)
+    public ProductDTO getMostBoughtProductOfTimeSpan(String userEmail, Instant dateMin, Instant dateMax)
     {
         if (!DateValidator.isValid(dateMin))
             throw new RuntimeException("Invalid min date given");
