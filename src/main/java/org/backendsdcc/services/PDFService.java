@@ -17,6 +17,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.backendsdcc.support.exceptions.ConflictException;
+import org.backendsdcc.support.exceptions.InvalidRequestException;
+import org.backendsdcc.support.exceptions.NotFoundException;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -48,7 +52,7 @@ public class PDFService
         PdfReader reader = new PdfReader(file.getInputStream());
 
         if (!reader.getInfo().containsKey("Author") || reader.getInfo().containsKey("Author") && !reader.getInfo().get("Author").equals("SDCC_GEN"))
-            throw new RuntimeException("Receipt incorrectly formatted");
+            throw new InvalidRequestException("Receipt incorrectly formatted");
 
         // Itera attraverso le pagine del PDF
         for (int i = 1; i <= reader.getNumberOfPages(); i++)
@@ -62,17 +66,17 @@ public class PDFService
             receiptParsed = ReceiptPDFParser.parse(pdfContent.toString());
         } catch (IllegalArgumentException e)
         {
-            throw new RuntimeException("PDF parsing error: " + e.getMessage());
+            throw new InvalidRequestException("PDF parsing error: " + e.getMessage());
         }
 
         if (receiptRepository.findReceiptByCode(receiptParsed.getCode()).isPresent())
-            throw new RuntimeException("Receipt already exists");
+            throw new ConflictException("Receipt already exists");
 
         Receipt receipt = new Receipt();
         receipt.setCode(receiptParsed.getCode());
         receipt.setDate(receiptParsed.getDate());
         receipt.setUser(userRepository.findByEmail(receiptParsed.getUserEmail())
-            .orElseThrow(() -> new RuntimeException("User not found: " + receiptParsed.getUserEmail()))); // non propago un dato sbagliato, ma lancio un'eccezione. Se l'utente non esiste, non posso salvare lo scontrino.
+            .orElseThrow(() -> new NotFoundException("User not found: " + receiptParsed.getUserEmail()))); // non propago un dato sbagliato, ma lancio un'eccezione. Se l'utente non esiste, non posso salvare lo scontrino.
         receipt.setTax(receiptParsed.getTax());
         receipt.setAmount(receiptParsed.getAmount());
         receipt.setPaymentMethod(receiptParsed.getPaymentMethod());
@@ -101,7 +105,7 @@ public class PDFService
     public byte[] getPDFFromReceiptCode(String code) throws DocumentException, IOException
     {
         return getPDFFromReceipt(receiptRepository.findReceiptByCode(code)
-            .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + code)));
+            .orElseThrow(() -> new NotFoundException("Receipt not found: " + code)));
     }
 
     @Transactional(readOnly = true)

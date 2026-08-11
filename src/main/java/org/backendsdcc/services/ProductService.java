@@ -7,6 +7,9 @@ import org.backendsdcc.repositories.ProductRepository;
 import org.backendsdcc.repositories.ReceiptRepository;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.ProductDTO;
+import org.backendsdcc.support.exceptions.ConflictException;
+import org.backendsdcc.support.exceptions.InvalidRequestException;
+import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,11 +42,11 @@ public class ProductService
     {
         Product product = new Product();
 
-        if (productRepository.findByCode(productDTO.getCode()) != null)
-            throw new RuntimeException("Product already exists");
+        if (productRepository.findByCode(productDTO.getCode()).isPresent())
+            throw new ConflictException("Product already exists");
         product.setCode(productDTO.getCode());
         if (productDTO.getName() == null)
-            throw new RuntimeException("Invalid product name");
+            throw new InvalidRequestException("Invalid product name");
         product.setName(productDTO.getName());
 
         productRepository.save(product);
@@ -53,7 +56,7 @@ public class ProductService
     public ProductDTO getMostBoughtProductOfTheMonth(String userEmail, Instant date)
     {
         if (!DateValidator.isValid(date))
-            throw new RuntimeException("Invalid date given");
+            throw new InvalidRequestException("Invalid date given");
         Calendar cal = Calendar.getInstance();
         cal.setTime(Date.from(date));
         cal.set(cal.get(Calendar.YEAR) + 1900, cal.get(Calendar.MONTH), 1);
@@ -67,14 +70,13 @@ public class ProductService
     public ProductDTO getMostBoughtProductOfTimeSpan(String userEmail, Instant dateMin, Instant dateMax)
     {
         if (!DateValidator.isValid(dateMin))
-            throw new RuntimeException("Invalid min date given");
+            throw new InvalidRequestException("Invalid min date given");
         if (!DateValidator.isValid(dateMax))
-            throw new RuntimeException("Invalid max date given");
+            throw new InvalidRequestException("Invalid max date given");
         if (userEmail == null)
-            throw new RuntimeException("Invalid user");
-        if (userRepository.findByEmail(userEmail) == null)
-            throw new RuntimeException("User not found");
-        User user = userRepository.findByEmail(userEmail);
+            throw new InvalidRequestException("Invalid user");
+        User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new NotFoundException("User not found"));;
 
         List<Receipt> receipts = receiptRepository.findReceiptsByUserAndDateBetween(user, dateMin, dateMax);
         Map<Product, Integer> occurrence = new HashMap<>();
