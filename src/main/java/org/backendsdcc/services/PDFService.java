@@ -8,9 +8,9 @@ import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.repositories.*;
-import static org.backendsdcc.support.pdf.PDF.generatePDF;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
+import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.pdf.ReceiptPDFParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,6 +33,8 @@ public class PDFService
     private ProductRepository productRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private PDF pdfGenerator;
 
 
     @Transactional
@@ -42,7 +44,7 @@ public class PDFService
         // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
 
-        if (reader.getInfo().containsKey("Author") && !reader.getInfo().get("Author").equals("SDCC_GEN"))
+        if (!reader.getInfo().containsKey("Author") || reader.getInfo().containsKey("Author") && !reader.getInfo().get("Author").equals("SDCC_GEN"))
             throw new RuntimeException("Receipt incorrectly formatted");
 
         // Itera attraverso le pagine del PDF
@@ -103,8 +105,6 @@ public class PDFService
     public byte[] getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
     {
         List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
-        return generatePDF(receipt, purchases);
+        return pdfGenerator.generatePDF(receipt, purchases);
     }
-
-    // TODO conservazione pdf sul db
 }

@@ -6,7 +6,6 @@ import org.backendsdcc.models.*;
 import org.backendsdcc.repositories.*;
 import org.backendsdcc.support.comparators.ReceiptAmountComparator;
 import org.backendsdcc.support.comparators.ReceiptDateComparator;
-import org.backendsdcc.;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.pdf.PDF;
@@ -16,11 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.commons.text.similarity.FuzzyScore;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ReceiptService
@@ -37,6 +34,8 @@ public class ReceiptService
     private ProductService productService;
     @Autowired
     private S3Service s3Service;
+    @Autowired
+    private PDF pdfGenerator;
 
     @Transactional(readOnly = true)
     public ReceiptDTO getReceipt(String code)
@@ -91,7 +90,7 @@ public class ReceiptService
         return receiptDTOs;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void saveReceipt(ReceiptDTO receiptDTO)
     {
         if (receiptDTO == null)
@@ -104,17 +103,13 @@ public class ReceiptService
             throw new RuntimeException("A receipt with this code already exists");
         receipt.setCode(receiptDTO.getCode());
 
-        if (receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+        if (receiptDTO.getAmount() == null || receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
             throw new RuntimeException("Receipt amount not valid");
         receipt.setAmount(receiptDTO.getAmount());
 
-        if (receiptDTO.getTax().compareTo(BigDecimal.ZERO) <= 0 || receiptDTO.getTax().compareTo(receiptDTO.getAmount()) >= 0)
+        if (receiptDTO.getTax() == null || receiptDTO.getTax().compareTo(BigDecimal.ZERO) <= 0 || receiptDTO.getTax().compareTo(receiptDTO.getAmount()) >= 0)
             throw new RuntimeException("Receipt taxes not valid");
         receipt.setTax(receiptDTO.getTax());
-
-        if (receiptDTO.getAmount().compareTo(receiptDTO.getTax()) <= 0 || receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
-            throw new RuntimeException("Receipt amount must be greater than tax");
-        receipt.setAmount(receiptDTO.getAmount());
 
         if (receiptDTO.getUserEmail() == null)
             throw new RuntimeException("Receipt user email not valid");
@@ -151,16 +146,8 @@ public class ReceiptService
             if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
                 throw new RuntimeException("Price not valid");
 
-            if (productRepository.findByCode(productCode).isEmpty())
-                throw new RuntimeException("Product not found");
-
             Product product = productRepository.findByCode(productCode)
-                .orElseGet(() -> {
-                    Product newProduct = new Product();
-                    newProduct.setCode(productCode);
-                    newProduct.setName(productName);
-                    return productRepository.save(newProduct);
-                });
+                .orElseThrow(() -> new RuntimeException("Product not found"));
             total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
             if (total.compareTo(receipt.getAmount()) > 0)
@@ -186,7 +173,7 @@ public class ReceiptService
         Receipt receipt = receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
 
-        byte[] pdfBytes = PDF.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
+        byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
 
         String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
 

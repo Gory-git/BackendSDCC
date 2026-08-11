@@ -21,17 +21,17 @@ public class PDF
     private final static String currencySymbol = "€";
 
     @Value("${table_noOfColumns}")
-    private static int noOfColumns;
+    private int noOfColumns;
 
     @Value("${table.columnNames}")
-    private static List<String> columnNames;
+    private List<String> columnNames;
 
     private static final Font COURIER = new Font(Font.FontFamily.COURIER, 20, Font.BOLD);
     private static final Font COURIER_SMALL = new Font(Font.FontFamily.COURIER, 16, Font.BOLD);
     private static final Font COURIER_SMALL_FOOTER = new Font(Font.FontFamily.COURIER, 12, Font.BOLD);
 
 
-    public static byte[] generatePDF(Receipt receipt, List<Purchase> purchases) throws DocumentException
+    public byte[] generatePDF(Receipt receipt, List<Purchase> purchases) throws DocumentException
     {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Document document = new Document();
@@ -49,7 +49,7 @@ public class PDF
     }
 
 
-    private static void addDocTitle(Document document, Receipt receipt) throws DocumentException
+    private void addDocTitle(Document document, Receipt receipt) throws DocumentException
     {
         Paragraph p1 = new Paragraph();
         leaveEmptyLine(p1, 1);
@@ -62,7 +62,7 @@ public class PDF
         document.add(p1);
     }
 
-    private static void addFooter(Document document, Receipt receipt) throws DocumentException
+    private void addFooter(Document document, Receipt receipt) throws DocumentException
     {
         Paragraph p2 = new Paragraph();
         leaveEmptyLine(p2, 1);
@@ -75,7 +75,7 @@ public class PDF
         document.add(p2);
     }
 
-    private static void createTable(Document document, int noOfColumns, List<Purchase> purchases) throws DocumentException
+    private void createTable(Document document, int noOfColumns, List<Purchase> purchases) throws DocumentException
     {
         Paragraph paragraph = new Paragraph();
         leaveEmptyLine(paragraph, 3);
@@ -95,7 +95,7 @@ public class PDF
         document.add(table);
     }
 
-    private static void getDbData(PdfPTable table, List<Purchase> purchases)
+    private void getDbData(PdfPTable table, List<Purchase> purchases)
     {
         for (Purchase purchase : purchases)
         {
@@ -109,7 +109,7 @@ public class PDF
             table.addCell(String.valueOf(purchase.getQuantity()));
             table.addCell(currencySymbol + purchase.getPrice().toString());
             BigDecimal total = BigDecimal.valueOf(purchase.getQuantity()).multiply(purchase.getPrice());
-            table.addCell(currencySymbol + total.toString());
+            table.addCell(currencySymbol + total);
         }
     }
 
