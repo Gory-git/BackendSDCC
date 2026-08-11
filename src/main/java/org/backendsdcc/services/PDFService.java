@@ -36,8 +36,6 @@ public class PDFService
     private ProductRepository productRepository;
     @Autowired
     private UserRepository userRepository;
-    @Autowired
-    private PaymentMethodRepository paymentMethodRepository;
 
 
     @Transactional(readOnly = true)

@@ -12,8 +12,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>
 {
     Product findByName(String name);
 
-    Product findById(long id);
-
     @Query(
             "SELECT P " +
             "FROM Product P, User U, Purchase PU, Receipt R " +

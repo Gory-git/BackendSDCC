@@ -6,6 +6,7 @@ import org.backendsdcc.support.comparators.ReceiptAmountComparator;
 import org.backendsdcc.support.comparators.ReceiptDateComparator;
 import org.backendsdcc.support.dto.ProductDTO;
 import org.backendsdcc.support.dto.ReceiptDTO;
+import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,8 +30,6 @@ public class ReceiptService
     @Autowired
     private UserRepository userRepository;
     @Autowired
-    private PaymentMethodRepository paymentMethodRepository;
-    @Autowired
     private ProductService productService;
 
     @Transactional(readOnly = true)
@@ -50,21 +49,25 @@ public class ReceiptService
         receiptDTO.setUserEmail(receipt.getUser().getEmail());
         receiptDTO.setPaymentMethod(receipt.getPaymentMethod());
 
-        List<ProductDTO> productDTOs = new ArrayList<>();
-        List<Integer> quantities = new ArrayList<>();
-        List<Product> products = productRepository.findProductByReceipt(receipt);
+        List<ReceiptLineDTO> lines = new ArrayList<>();
+        List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
 
-        for (Product product : products)
+        for (Purchase purchase : purchases)
         {
+            ReceiptLineDTO lineDTO = new ReceiptLineDTO();
+            
             ProductDTO productDTO = new ProductDTO();
-            productDTO.setCode(product.getCode());
-            productDTO.setName(product.getName());
-            productDTOs.add(productDTO);
-            quantities.add(productRepository.getProductQuantityByReceiptAndProduct(receipt, product));
+            productDTO.setCode(purchase.getProduct().getCode());
+            productDTO.setName(purchase.getProduct().getName());
+            
+            lineDTO.setProduct(productDTO);
+            lineDTO.setQuantity(purchase.getQuantity());
+            lineDTO.setPrice(purchase.getPrice());
+            
+            lines.add(lineDTO);
         }
 
-        receiptDTO.setProducts(productDTOs);
-        receiptDTO.setQuantities(quantities);
+        receiptDTO.setLines(lines);
 
         return receiptDTO;
     }
@@ -123,51 +126,47 @@ public class ReceiptService
             throw new RuntimeException("Receipt date not valid");
         receipt.setDate(date);
 
-        List<ProductDTO> products = receiptDTO.getProducts();
-        List<Integer> quantities = receiptDTO.getQuantities();
-        List<BigDecimal> prices = receiptDTO.getPrices();
+        List<ReceiptLineDTO> lines = receiptDTO.getLines();
 
-        if (products == null || products.isEmpty())
-            throw new RuntimeException("No products found");
-        if (quantities == null || quantities.isEmpty())
-            throw new RuntimeException("No quantities found");
-        if (prices == null || prices.isEmpty())
-            throw new RuntimeException("No prices found");
+        if (lines == null || lines.isEmpty())
+            throw new RuntimeException("No items found in receipt");
 
         BigDecimal total = BigDecimal.ZERO;
-        for (int i = 0; i < products.size(); i++)
+        for (ReceiptLineDTO lineDTO : lines)
         {
-            ProductDTO productDTO = products.get(i);
-            int quantity = quantities.get(i);
-            BigDecimal price = prices.get(i);
+            ProductDTO productDTO = lineDTO.getProduct();
+            Integer quantity = lineDTO.getQuantity();
+            BigDecimal price = lineDTO.getPrice();
 
             if (productDTO == null)
                 throw new RuntimeException("Product not found");
-            if (quantity <= 0)
+            if (quantity == null || quantity <= 0)
                 throw new RuntimeException("Quantity not valid");
-            if (price.compareTo(BigDecimal.ZERO) <= 0)
+            if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
                 throw new RuntimeException("Price not valid");
 
             if (productRepository.findByCode(productDTO.getCode()) == null)
                 productService.addProduct(productDTO);
-            if (productRepository.findByCode(productDTO.getCode()) != null)
+            
+            Product product = productRepository.findByCode(productDTO.getCode());
+            if (product != null)
             {
                 total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
-                if (total.compareTo(receipt.getAmount()) >= 0)
-                    throw new RuntimeException("Receipt amount not valid");
+                if (total.compareTo(receipt.getAmount()) > 0)
+                    throw new RuntimeException("Receipt amount not valid: items exceed total");
 
                 Purchase purchase = new Purchase();
                 purchase.setReceipt(receipt);
                 purchase.setPrice(price);
                 purchase.setQuantity(quantity);
-                purchase.setProduct(productRepository.findByCode(productDTO.getCode()));
+                purchase.setProduct(product);
                 purchaseRepository.save(purchase);
             }
         }
 
         if (total.compareTo(receipt.getAmount()) != 0)
-            throw new RuntimeException("Receipt amount not valid");
+            throw new RuntimeException("Receipt amount mismatch: items total does not match receipt amount");
 
         receiptRepository.save(receipt);
 
