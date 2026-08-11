@@ -42,4 +42,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>
     int getProductQuantityByReceiptAndProduct(Receipt receipt, Product product);
 
     Optional<Product> findByCode(String code);
+
+    boolean existsByCode(String code);
 }

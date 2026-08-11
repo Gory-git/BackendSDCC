@@ -1,6 +1,7 @@
 package org.backendsdcc.services;
 
 import org.backendsdcc.models.Product;
+import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.ProductRepository;
@@ -11,6 +12,7 @@ import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.validators.DateValidator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,29 +22,37 @@ import java.util.*;
 @Service
 public class ProductService
 {
-    private final ReceiptRepository receiptRepository;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    @Autowired
+    private ReceiptRepository receiptRepository;
+    @Autowired
+    private ProductRepository productRepository;
+    @Autowired
+    private UserRepository userRepository;
 
-    public ProductService(ReceiptRepository receiptRepository, ProductRepository productRepository, UserRepository userRepository)
+    private static ProductDTO convertToDTO(Product product)
     {
-        this.receiptRepository = receiptRepository;
-        this.productRepository = productRepository;
-        this.userRepository = userRepository;
+        ProductDTO productDTO = new ProductDTO();
+        productDTO.setCode(product.getCode());
+        productDTO.setName(product.getName());
+        return productDTO;
     }
 
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProducts(/* TODO condizione */)
+    public List<ProductDTO> getProducts()
     {
-        return new ArrayList<ProductDTO>();
+        List<Product> products = productRepository.findAll();
+        List<ProductDTO> productDTOs = new ArrayList<>();
+        for (Product product : products)
+            productDTOs.add(convertToDTO(product));
+        return productDTOs;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public void addProduct(ProductDTO productDTO)
     {
         Product product = new Product();
 
-        if (productRepository.findByCode(productDTO.getCode()).isPresent())
+        if (productRepository.existsByCode(productDTO.getCode()))
             throw new ConflictException("Product already exists");
         product.setCode(productDTO.getCode());
         if (productDTO.getName() == null)
@@ -57,13 +67,10 @@ public class ProductService
     {
         if (!DateValidator.isValid(date))
             throw new InvalidRequestException("Invalid date given");
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(Date.from(date));
-        cal.set(cal.get(Calendar.YEAR) + 1900, cal.get(Calendar.MONTH), 1);
-        Instant dateMin = cal.toInstant();
-        Instant dateMax = cal.toInstant();
 
-        return getMostBoughtProductOfTimeSpan(userEmail, dateMin, dateMax);
+        Instant dateMin = date.minusSeconds(30 * 24 * 60 * 60); // 30 days ago
+
+        return getMostBoughtProductOfTimeSpan(userEmail, DateValidator.parse(dateMin.toString()), date);
     }
 
     @Transactional(readOnly = true)
@@ -73,25 +80,28 @@ public class ProductService
             throw new InvalidRequestException("Invalid min date given");
         if (!DateValidator.isValid(dateMax))
             throw new InvalidRequestException("Invalid max date given");
-        if (userEmail == null)
+        if (dateMin.isAfter(dateMax))
+            throw new InvalidRequestException("Invalid date range given");
+        if (userEmail == null || userEmail.isBlank())
             throw new InvalidRequestException("Invalid user");
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> new NotFoundException("User not found"));;
 
         List<Receipt> receipts = receiptRepository.findReceiptsByUserAndDateBetween(user, dateMin, dateMax);
         Map<Product, Integer> occurrence = new HashMap<>();
+        List<Purchase> purchases = new ArrayList<>();
         for (Receipt receipt : receipts)
         {
-            List<Product> products = productRepository.findProductByReceipt(receipt);
-            for  (Product product : products)
-            {
-                Integer quantity = productRepository.getProductQuantityByReceiptAndProduct(receipt, product);
-                if (!occurrence.containsKey(product))
-                {
-                    occurrence.put(product, 0);
-                }
-                occurrence.put(product, occurrence.get(product) + quantity);
-            }
+            purchases.addAll(receipt.getPurchases());
+
+        }
+        for  (Purchase purchase : purchases)
+        {
+            Product product = purchase.getProduct();
+            int quantity = purchase.getQuantity();
+            if (!occurrence.containsKey(product))
+                occurrence.put(product, 0);
+            occurrence.put(product, occurrence.get(product) + quantity);
         }
         Product mostBought = null;
         int max = -1;
@@ -106,13 +116,9 @@ public class ProductService
         }
 
         if (max == -1 || mostBought == null)
-            throw new RuntimeException("No product found");
+            throw new NotFoundException("No product found");
 
-        ProductDTO productDTO = new ProductDTO();
-        productDTO.setCode(mostBought.getCode());
-        productDTO.setName(mostBought.getName());
-
-        return productDTO;
+        return convertToDTO(mostBought);
     }
 
 }

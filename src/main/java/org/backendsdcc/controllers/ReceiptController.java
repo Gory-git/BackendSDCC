@@ -1,6 +1,5 @@
 package org.backendsdcc.controllers;
 
-import org.backendsdcc.models.Receipt;
 import org.backendsdcc.services.ReceiptService;
 import org.backendsdcc.services.S3Service;
 import org.backendsdcc.support.dto.ReceiptDTO;
