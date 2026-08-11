@@ -18,4 +18,5 @@ public class ReceiptDTO
     private PaymentMethod paymentMethod;
     private String userEmail;
     private List<ReceiptLineDTO> lines;
+    private String s3Key;
 }

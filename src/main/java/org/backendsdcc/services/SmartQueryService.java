@@ -16,5 +16,5 @@ public class SmartQueryService
     @Autowired
     private UserRepository userRepository;
 
-    // TODO
+    // TODO capire come posso inserire query dinamiche, magari con Criteria API o QueryDSL, per poter fare query complesse sui dati dei ricevute, acquisti, prodotti e utenti.
 }
