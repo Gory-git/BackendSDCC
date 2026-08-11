@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -39,4 +41,8 @@ public class Receipt
 
     @Column(name = "s3_key", nullable = true)
     private String s3Key;
+
+    @OneToMany(mappedBy = "receipt", fetch = FetchType.LAZY)
+    private List<Purchase> purchases = new ArrayList<>();
+
 }

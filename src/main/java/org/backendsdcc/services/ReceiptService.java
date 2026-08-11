@@ -11,9 +11,14 @@ import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.commons.text.similarity.FuzzyScore;
+
+import org.backendsdcc.support.exceptions.ConflictException;
+import org.backendsdcc.support.exceptions.InvalidRequestException;
+import org.backendsdcc.support.exceptions.NotFoundException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,52 +37,53 @@ public class ReceiptService
     private UserRepository userRepository;
     @Autowired
     private ProductService productService;
-    @Autowired
-    private S3Service s3Service;
-    @Autowired
-    private PDF pdfGenerator;
 
     @Transactional(readOnly = true)
     public ReceiptDTO getReceipt(String code)
     {
         Receipt receipt = receiptRepository.findReceiptByCode(code)
-                .orElseThrow(() -> new RuntimeException("Receipt not found"));
+                .orElseThrow(() -> new NotFoundException("Receipt not found"));
 
+        return convertToDTO(receipt);
+    }
+
+    private static ReceiptDTO convertToDTO(Receipt receipt)
+    {
         ReceiptDTO receiptDTO = new ReceiptDTO();
-
         receiptDTO.setCode(receipt.getCode());
         receiptDTO.setAmount(receipt.getAmount());
-        receiptDTO.setDate(receipt.getDate());
         receiptDTO.setTax(receipt.getTax());
-        receiptDTO.setUserEmail(receipt.getUser().getEmail());
+        receiptDTO.setDate(receipt.getDate());
         receiptDTO.setPaymentMethod(receipt.getPaymentMethod());
+        receiptDTO.setUserEmail(receipt.getUser().getEmail());
 
+        List<ReceiptLineDTO> lines = getReceiptLineDTOS(receipt);
+        receiptDTO.setLines(lines);
+        return receiptDTO;
+    }
+
+    private static List<ReceiptLineDTO> getReceiptLineDTOS(Receipt receipt)
+    {
+        List<Purchase> purchases = receipt.getPurchases();
         List<ReceiptLineDTO> lines = new ArrayList<>();
-        List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
-
         for (Purchase purchase : purchases)
         {
             ReceiptLineDTO lineDTO = new ReceiptLineDTO();
-            
             lineDTO.setProductCode(purchase.getProduct().getCode());
             lineDTO.setProductName(purchase.getProduct().getName());
             lineDTO.setQuantity(purchase.getQuantity());
             lineDTO.setPrice(purchase.getPrice());
-            
             lines.add(lineDTO);
         }
-
-        receiptDTO.setLines(lines);
-
-        return receiptDTO;
+        return lines;
     }
 
     @Transactional(readOnly = true)
     public List<ReceiptDTO> getAllReceiptsOrdered(User user, boolean date)
     {
-        List<Receipt> receipts = receiptRepository.findByUser(user);
+        List<Receipt> receipts = receiptRepository.findByUserWithPurchases(user);
         if (receipts == null || receipts.isEmpty())
-            throw new RuntimeException("No receipt found");
+            throw new NotFoundException("No receipt found");
 
         if (date)   // SORT BY DATE
             receipts.sort(new ReceiptDateComparator());
@@ -86,7 +92,7 @@ public class ReceiptService
 
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
         for (Receipt receipt : receipts)
-            receiptDTOs.add(getReceipt(receipt.getCode()));
+            receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
     }
 
@@ -94,42 +100,42 @@ public class ReceiptService
     public void saveReceipt(ReceiptDTO receiptDTO)
     {
         if (receiptDTO == null)
-            throw new RuntimeException("Receipt not valid");
+            throw new InvalidRequestException("Receipt not valid");
         Receipt receipt = new Receipt();
 
         if (receiptDTO.getCode() == null)
-            throw new RuntimeException("Receipt code not valid");
+            throw new InvalidRequestException("Receipt code not valid");
         if (receiptRepository.findReceiptByCode(receiptDTO.getCode()).isPresent())
-            throw new RuntimeException("A receipt with this code already exists");
+            throw new ConflictException("A receipt with this code already exists");
         receipt.setCode(receiptDTO.getCode());
 
         if (receiptDTO.getAmount() == null || receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
-            throw new RuntimeException("Receipt amount not valid");
+            throw new InvalidRequestException("Receipt amount not valid");
         receipt.setAmount(receiptDTO.getAmount());
 
         if (receiptDTO.getTax() == null || receiptDTO.getTax().compareTo(BigDecimal.ZERO) <= 0 || receiptDTO.getTax().compareTo(receiptDTO.getAmount()) >= 0)
-            throw new RuntimeException("Receipt taxes not valid");
+            throw new InvalidRequestException("Receipt taxes not valid");
         receipt.setTax(receiptDTO.getTax());
 
         if (receiptDTO.getUserEmail() == null)
-            throw new RuntimeException("Receipt user email not valid");
+            throw new InvalidRequestException("Receipt user email not valid");
 
         receipt.setUser(userRepository.findByEmail(receiptDTO.getUserEmail())
-            .orElseThrow(() -> new RuntimeException("No user with this email exists")));
+            .orElseThrow(() -> new NotFoundException("No user with this email exists")));
 
         if (receiptDTO.getPaymentMethod() == null)
-            throw new RuntimeException("Receipt payment method not valid");
+            throw new InvalidRequestException("Receipt payment method not valid");
         receipt.setPaymentMethod(receiptDTO.getPaymentMethod());
 
         Instant date = receiptDTO.getDate();
         if (!DateValidator.isValid(date))
-            throw new RuntimeException("Receipt date not valid");
+            throw new InvalidRequestException("Receipt date not valid");
         receipt.setDate(date);
 
         List<ReceiptLineDTO> lines = receiptDTO.getLines();
 
         if (lines == null || lines.isEmpty())
-            throw new RuntimeException("No items found in receipt");
+            throw new InvalidRequestException("No items found in receipt");
 
         BigDecimal total = BigDecimal.ZERO;
         for (ReceiptLineDTO lineDTO : lines)
@@ -140,18 +146,18 @@ public class ReceiptService
             BigDecimal price = lineDTO.getPrice();
 
             if (productCode == null)
-                throw new RuntimeException("Product code not found");
+                throw new InvalidRequestException("Product code not found");
             if (quantity == null || quantity <= 0)
-                throw new RuntimeException("Quantity not valid");
+                throw new InvalidRequestException("Quantity not valid");
             if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
-                throw new RuntimeException("Price not valid");
+                throw new InvalidRequestException("Price not valid");
 
             Product product = productRepository.findByCode(productCode)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new NotFoundException("Product not found"));
             total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
             if (total.compareTo(receipt.getAmount()) > 0)
-                throw new RuntimeException("Receipt amount not valid: items exceed total");
+                throw new InvalidRequestException("Receipt amount not valid: items exceed total");
 
             Purchase purchase = new Purchase();
             purchase.setReceipt(receipt);
@@ -162,37 +168,24 @@ public class ReceiptService
         }
 
         if (total.compareTo(receipt.getAmount()) != 0)
-            throw new RuntimeException("Receipt amount mismatch: items total does not match receipt amount");
+            throw new InvalidRequestException("Receipt amount mismatch: items total does not match receipt amount");
 
         receiptRepository.save(receipt);
     }
 
-    @Transactional
-    public Receipt generateAndAttachPDF(Long receiptId) throws DocumentException
-    {
-        Receipt receipt = receiptRepository.findById(receiptId)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
-
-        byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
-
-        String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
-
-        receipt.setS3Key(s3Key);
-        return receiptRepository.save(receipt);
-    }
-
     @Transactional(readOnly = true)
-    public List<ReceiptDTO> findByUserEmailLIke(String email, float threshold)
+    public List<ReceiptDTO> findByUserEmailLike(String email, float threshold)
     {
-        if (email == null)
-            throw new RuntimeException("User email not valid");
+        if (email == null || !userRepository.existsByEmail(email))
+            throw new InvalidRequestException("User email not valid");
         if (threshold < 0 || threshold > 1)
-            throw new RuntimeException("Threshold not valid");
+            throw new InvalidRequestException("Threshold not valid");
+
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
         List<Receipt> receiptsWithDuplicates = receiptRepository.findByUserEmailLike("%"+email+"%");
         receiptsWithDuplicates.addAll(receiptRepository.findByUserEmailContains(email));
         // fuzzy search
-        List<Receipt> allReceipts = receiptRepository.findAll();
+        List<Receipt> allReceipts = receiptRepository.findAll(PageRequest.of(0, 500)).getContent();
         FuzzyScore fuzzyScore = new FuzzyScore(Locale.ITALIAN);
 
         receiptsWithDuplicates.addAll(allReceipts.stream()
@@ -202,7 +195,7 @@ public class ReceiptService
         // remove duplicates
         List<Receipt> receipts = new ArrayList<>(new HashSet<>(receiptsWithDuplicates));
         for (Receipt receipt : receipts)
-            receiptDTOs.add(getReceipt(receipt.getCode()));
+            receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
     }
 
@@ -210,15 +203,15 @@ public class ReceiptService
     public List<ReceiptDTO> findByCodeLike(String code, float threshold)
     {
         if (code == null)
-            throw new RuntimeException("Code not valid");
+            throw new InvalidRequestException("Code not valid");
         if (threshold < 0 || threshold > 1)
-            throw new RuntimeException("Threshold not valid");
+            throw new InvalidRequestException("Threshold not valid");
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
         List<Receipt> receiptsWithDuplicates = receiptRepository.findByCodeLike("%"+code+"%");
         receiptsWithDuplicates.addAll(receiptRepository.findByCodeContains(code));
 
         // fuzzy search
-        List<Receipt> allReceipts = receiptRepository.findAll();
+        List<Receipt> allReceipts = receiptRepository.findAll(PageRequest.of(0, 500)).getContent();
         FuzzyScore fuzzyScore = new FuzzyScore(Locale.ITALIAN);
 
         receiptsWithDuplicates.addAll(allReceipts.stream()
@@ -228,7 +221,7 @@ public class ReceiptService
         // remove duplicates
         List<Receipt> receipts = new ArrayList<>(new HashSet<>(receiptsWithDuplicates));
         for (Receipt receipt : receipts)
-            receiptDTOs.add(getReceipt(receipt.getCode()));
+            receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
     }
 

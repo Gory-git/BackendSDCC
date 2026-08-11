@@ -10,6 +10,7 @@ import org.backendsdcc.models.Receipt;
 import org.backendsdcc.repositories.*;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
+import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.pdf.ReceiptPDFParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,8 @@ public class PDFService
     private UserRepository userRepository;
     @Autowired
     private PDF pdfGenerator;
+    @Autowired
+    private S3Service s3Service;
 
 
     @Transactional
@@ -106,5 +109,19 @@ public class PDFService
     {
         List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
         return pdfGenerator.generatePDF(receipt, purchases);
+    }
+
+    @Transactional
+    public Receipt generateAndAttachPDF(Long receiptId) throws DocumentException
+    {
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new NotFoundException("Receipt not found: " + receiptId));
+
+        byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
+
+        String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
+
+        receipt.setS3Key(s3Key);
+        return receiptRepository.save(receipt);
     }
 }

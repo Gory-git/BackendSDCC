@@ -3,6 +3,8 @@ package org.backendsdcc.repositories;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -12,6 +14,13 @@ import java.util.Optional;
 public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 {
     List<Receipt> findByUser(User user);
+
+    @Query("SELECT DISTINCT r FROM Receipt r " +
+            "LEFT JOIN FETCH r.purchases p " +
+            "LEFT JOIN FETCH p.product " +
+            "WHERE r.user = :user")
+    List<Receipt> findByUserWithPurchases(@Param("user") User user);
+
 
     Optional<Receipt> findReceiptByCode(String code);
 
