@@ -7,12 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 {
     List<Receipt> findByUser(User user);
 
-    Receipt findReceiptByCode(String code);
+    Optional<Receipt> findReceiptByCode(String code);
 
     List<Receipt> findReceiptsByUserAndDateBetween(User user, Instant dateMin, Instant dateMax);
 

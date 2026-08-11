@@ -11,7 +11,8 @@ import java.util.List;
 @Setter
 public class ReceiptLineDTO
 {
-    private ProductDTO product;
+    private String productCode;
+    private String productName;
     private Integer quantity;
     private BigDecimal price;
 }

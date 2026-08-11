@@ -145,24 +145,27 @@ public class ReceiptService
             if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
                 throw new RuntimeException("Price not valid");
 
-            if (productRepository.findByCode(productDTO.getCode()) == null)
+            if (productRepository.findByCode(productDTO.getCode()).isEmpty())
                 productService.addProduct(productDTO);
             
-            Product product = productRepository.findByCode(productDTO.getCode());
-            if (product != null)
-            {
-                total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
+            Product product = productRepository.findByCode(productDTO.getCode())
+                .orElseGet(() -> {
+                    Product newProduct = new Product();
+                    newProduct.setCode(productDTO.getCode());
+                    newProduct.setName(productDTO.getName());
+                    return productRepository.save(newProduct);
+                });
+            total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
-                if (total.compareTo(receipt.getAmount()) > 0)
-                    throw new RuntimeException("Receipt amount not valid: items exceed total");
+            if (total.compareTo(receipt.getAmount()) > 0)
+                throw new RuntimeException("Receipt amount not valid: items exceed total");
 
-                Purchase purchase = new Purchase();
-                purchase.setReceipt(receipt);
-                purchase.setPrice(price);
-                purchase.setQuantity(quantity);
-                purchase.setProduct(product);
-                purchaseRepository.save(purchase);
-            }
+            Purchase purchase = new Purchase();
+            purchase.setReceipt(receipt);
+            purchase.setPrice(price);
+            purchase.setQuantity(quantity);
+            purchase.setProduct(product);
+            purchaseRepository.save(purchase);
         }
 
         if (total.compareTo(receipt.getAmount()) != 0)

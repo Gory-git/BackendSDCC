@@ -8,6 +8,7 @@ import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -49,12 +50,26 @@ public class PDF
     {
         Paragraph p1 = new Paragraph();
         leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph(documentName, COURIER));
+        p1.add(new Paragraph("RECEIPT_CODE: " + receipt.getCode(), COURIER));
+        p1.add(new Paragraph("USER_EMAIL: " + receipt.getUser().getEmail(), COURIER));
+        p1.add(new Paragraph("DATE: " + receipt.getDate(), COURIER));
         p1.setAlignment(Element.ALIGN_CENTER);
-        leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph("Receipt issued on" + receipt.getDate(), COURIER_SMALL));
+        leaveEmptyLine(p1, 2);
 
         document.add(p1);
+    }
+
+    private static void addFooter(Document document, Receipt receipt) throws DocumentException
+    {
+        Paragraph p2 = new Paragraph();
+        leaveEmptyLine(p2, 1);
+        p2.setAlignment(Element.ALIGN_CENTER);
+        p2.add(new Paragraph("TAX: " + currencySymbol + receipt.getTax(), COURIER_SMALL));
+        p2.add(new Paragraph("TOTAL: " + currencySymbol + receipt.getAmount(), COURIER_SMALL));
+        p2.add(new Paragraph("PAYMENT: " + receipt.getPaymentMethod(), COURIER_SMALL));
+        leaveEmptyLine(p2, 3);
+
+        document.add(p2);
     }
 
     private static void createTable(Document document, int noOfColumns, List<Purchase> purchases) throws DocumentException
@@ -95,34 +110,18 @@ public class PDF
         }
     }
 
-    private static void addFooter(Document document, Receipt receipt) throws DocumentException
-    {
-        Paragraph p2 = new Paragraph();
-        leaveEmptyLine(p2, 1);
-        p2.setAlignment(Element.ALIGN_CENTER);
-        p2.add(new Paragraph(
-                "Tax:   " + currencySymbol + receipt.getTax(),
-                COURIER_SMALL));
-        p2.add(new Paragraph(
-                "Total: " + currencySymbol + receipt.getAmount(),
-                COURIER_SMALL));
-        p2.add(new Paragraph(
-                "Payment: " + currencySymbol + receipt.getPaymentMethod(),
-                COURIER_SMALL));
-        leaveEmptyLine(p2, 3);
-        p2.setAlignment(Element.ALIGN_MIDDLE);
-        p2.add(new Paragraph(
-                "End Of " + documentName,
-                COURIER_SMALL_FOOTER));
-
-        document.add(p2);
-    }
-
     private static void leaveEmptyLine(Paragraph paragraph, int number)
     {
         for (int i = 0; i < number; i++)
         {
             paragraph.add(new Paragraph(" "));
         }
+    }
+
+    public static ByteArrayOutputStream PDFtoByteArrayOutputStream(Document document) throws IOException, DocumentException
+    {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, outputStream);
+        return outputStream;
     }
 }
