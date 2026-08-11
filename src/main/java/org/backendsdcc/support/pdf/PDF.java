@@ -6,14 +6,16 @@ import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
+import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Component
 public class PDF
 {
     private final static String currencySymbol = "€";
@@ -28,21 +30,22 @@ public class PDF
     private static final Font COURIER_SMALL = new Font(Font.FontFamily.COURIER, 16, Font.BOLD);
     private static final Font COURIER_SMALL_FOOTER = new Font(Font.FontFamily.COURIER, 12, Font.BOLD);
 
-    private static String documentName;
 
-    public static Document generatePDF(Receipt receipt, List<Purchase> purchases) throws IOException, DocumentException
+    public static byte[] generatePDF(Receipt receipt, List<Purchase> purchases) throws DocumentException
     {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Document document = new Document();
-        documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser().getEmail() + "_" + receipt.getDate() + ".pdf";
+        String documentName = "receipt_" + receipt.getCode() + "_" + receipt.getUser().getEmail() + "_" + receipt.getDate() + ".pdf";
 
-        PdfWriter.getInstance(document, new FileOutputStream(documentName));
+        PdfWriter.getInstance(document, baos);
+        document.addTitle(documentName);
         document.addAuthor("SDCC_GEN");
         document.open();
         addDocTitle(document, receipt);
         createTable(document, noOfColumns, purchases);
         addFooter(document, receipt);
         document.close();
-        return document;
+        return baos.toByteArray();
     }
 
 
@@ -52,7 +55,7 @@ public class PDF
         leaveEmptyLine(p1, 1);
         p1.add(new Paragraph("RECEIPT_CODE: " + receipt.getCode(), COURIER));
         p1.add(new Paragraph("USER_EMAIL: " + receipt.getUser().getEmail(), COURIER));
-        p1.add(new Paragraph("DATE: " + receipt.getDate(), COURIER));
+        p1.add(new Paragraph("DATE: " + DateValidator.parse(receipt.getDate().toString()), COURIER));
         p1.setAlignment(Element.ALIGN_CENTER);
         leaveEmptyLine(p1, 2);
 
@@ -116,12 +119,5 @@ public class PDF
         {
             paragraph.add(new Paragraph(" "));
         }
-    }
-
-    public static ByteArrayOutputStream PDFtoByteArrayOutputStream(Document document) throws IOException, DocumentException
-    {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        PdfWriter.getInstance(document, outputStream);
-        return outputStream;
     }
 }

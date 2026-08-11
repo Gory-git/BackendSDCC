@@ -4,31 +4,20 @@ import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.pdf.parser.PdfTextExtractor;
 import jakarta.persistence.EntityNotFoundException;
-import org.backendsdcc.models.PaymentMethod;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.repositories.*;
-
-import static org.backendsdcc.support.pdf.PDF.PDFtoByteArrayOutputStream;
 import static org.backendsdcc.support.pdf.PDF.generatePDF;
-
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.pdf.ReceiptPDFParser;
-import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.time.Instant;
 import java.util.List;
-import java.util.StringTokenizer;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,12 +42,14 @@ public class PDFService
         // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
 
-        if (reader.getInfo().containsKey("Author") &&  !reader.getInfo().get("Author").equals("SDCC_GEN"))
+        if (reader.getInfo().containsKey("Author") && !reader.getInfo().get("Author").equals("SDCC_GEN"))
             throw new RuntimeException("Receipt incorrectly formatted");
 
         // Itera attraverso le pagine del PDF
         for (int i = 1; i <= reader.getNumberOfPages(); i++)
             pdfContent.append(PdfTextExtractor.getTextFromPage(reader, i));
+
+        reader.close();
 
         ReceiptDTO receiptParsed;
         try
@@ -102,17 +93,17 @@ public class PDFService
     }
 
     @Transactional(readOnly = true)
-    public ByteArrayOutputStream getPDFFromReceiptCode(String code) throws DocumentException, IOException
+    public byte[] getPDFFromReceiptCode(String code) throws DocumentException, IOException
     {
         return getPDFFromReceipt(receiptRepository.findReceiptByCode(code)
             .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + code)));
     }
 
     @Transactional(readOnly = true)
-    public ByteArrayOutputStream getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
+    public byte[] getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
     {
         List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
-        return PDFtoByteArrayOutputStream(generatePDF(receipt, purchases));
+        return generatePDF(receipt, purchases);
     }
 
     // TODO lettura pdf generico

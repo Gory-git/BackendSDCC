@@ -19,9 +19,9 @@ public class ReceiptPDFParser
     private static final Pattern USER_EMAIL_PATTERN =
             Pattern.compile("USER_EMAIL\\s*[:=]\\s*([^\\s]+@[^\\s]+)");
     private static final Pattern DATE_PATTERN =
-            Pattern.compile("DATE\\s*[:=]\\s*([^\\n]+)");
+            Pattern.compile("DATE\\s*[:=]\\s*(\\d{4}-\\d{2}-\\d{2}-\\d{2}:\\d{2}:\\d{2})");
     private static final Pattern TAX_PATTERN =
-            Pattern.compile("TAX\\s*[:=]\\s*([\\d.]+)");
+            Pattern.compile("\\bTAX\\b\\s*[:=]\\s*([\\d.]+)");;
     private static final Pattern AMOUNT_PATTERN =
             Pattern.compile("TOTAL\\s*[:=]\\s*([\\d.]+)");
     private static final Pattern PAYMENT_PATTERN =
@@ -41,8 +41,14 @@ public class ReceiptPDFParser
         result.setUserEmail(extractField(pdfContent, USER_EMAIL_PATTERN, "USER_EMAIL"));
         result.setTax(new BigDecimal(extractField(pdfContent, TAX_PATTERN, "TAX")));
         result.setAmount(new BigDecimal(extractField(pdfContent, AMOUNT_PATTERN, "TOTAL")));
-        result.setPaymentMethod(PaymentMethod.valueOf(extractField(pdfContent, PAYMENT_PATTERN, "PAYMENT")));
-
+        String rawPaymentMethod = extractField(pdfContent, PAYMENT_PATTERN, "PAYMENT").trim();
+        try
+        {
+            result.setPaymentMethod(PaymentMethod.valueOf(rawPaymentMethod));
+        } catch (IllegalArgumentException e)
+        {
+            throw new IllegalArgumentException("Invalid payment method: " + rawPaymentMethod);
+        }
         result.setDate(DateValidator.parse(extractField(pdfContent, DATE_PATTERN, "DATE")));
 
         parseProductLines(pdfContent, result);
@@ -69,6 +75,8 @@ public class ReceiptPDFParser
             line.setQuantity(Integer.parseInt(matcher.group(3).trim()));
             line.setPrice(new BigDecimal(matcher.group(4).trim()));
             List<ReceiptLineDTO> lines = receipt.getLines();
+            if (lines == null)
+                lines = new java.util.ArrayList<>();
             lines.add(line);
             receipt.setLines(lines);
         }
