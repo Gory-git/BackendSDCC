@@ -44,6 +44,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'com.itextpdf:itextpdf:5.5.13.4'
     implementation 'org.apache.commons:commons-text:1.14.0'
+    implementation platform('software.amazon.awssdk:bom:2.25.60')
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:s3-transfer-manager'
 }
 
 tasks.named('test') {

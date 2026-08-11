@@ -36,4 +36,7 @@ public class Receipt
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name = "s3_key", nullable = true)
+    private String s3Key;
 }

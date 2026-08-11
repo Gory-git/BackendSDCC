@@ -106,6 +106,5 @@ public class PDFService
         return generatePDF(receipt, purchases);
     }
 
-    // TODO lettura pdf generico
     // TODO conservazione pdf sul db
 }

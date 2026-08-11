@@ -58,23 +58,7 @@ Da vedere se va sistemato
 
 ### PDFService
 
-Fatti alcuni fix ma non ancora completo. In primis vedere se va sistemato qualcosa e poi implementare tutti i TODO
-1. Receipt non salvata prima dei Purchase
-
-Nel while loop chiami purchase.setReceipt(receipt) e subito purchaseRepository.save(purchase), ma receipt è ancora un'entità transiente (non persistita). Hibernate lancia TransientPropertyValueException perché la FK punta a un oggetto senza ID.
-
-```java
-
-
-// ✅ Salva la receipt prima del loop
-receipt.setTax(tax); // ... ma tax viene parsata DOPO il loop 😱
-// Vedi punto 2 sul riordino della logica
-```
-2. Logica di parsing strutturalmente rotta — tax e amount vengono parsati DOPO i purchase
-
-tax e amount vengono letti dal tokenizer dopo il while loop, ma la receipt andrebbe persistita prima dei purchase. Questo crea un circolo vizioso. La receipt viene salvata senza amount e tax, e i purchase vengono salvati prima che la receipt sia persistita. Servono due passaggi separati: prima parsare tutto, poi persistere.
-
-
+fatti molti fix. Resta da salvare i PDF in un DB. Vedere come si fa con S3 AWS. Da vedere se serve un DTO per i PDF.
 
 ### ProductService
 
@@ -83,6 +67,7 @@ Da finire e da controllare
 ### ReceiptService
 
 Da finire e da controllare
+Aggiunto salvataggio dei PDF in S3 AWS. 
 
 ### UserService
 

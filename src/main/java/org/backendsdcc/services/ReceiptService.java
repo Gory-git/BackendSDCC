@@ -1,18 +1,22 @@
 package org.backendsdcc.services;
 
+import com.itextpdf.text.DocumentException;
+import jakarta.persistence.EntityNotFoundException;
 import org.backendsdcc.models.*;
 import org.backendsdcc.repositories.*;
 import org.backendsdcc.support.comparators.ReceiptAmountComparator;
 import org.backendsdcc.support.comparators.ReceiptDateComparator;
-import org.backendsdcc.support.dto.ProductDTO;
+import org.backendsdcc.;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
+import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.commons.text.similarity.FuzzyScore;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
@@ -31,15 +35,15 @@ public class ReceiptService
     private UserRepository userRepository;
     @Autowired
     private ProductService productService;
+    @Autowired
+    private S3Service s3Service;
 
     @Transactional(readOnly = true)
     public ReceiptDTO getReceipt(String code)
     {
-        Receipt receipt = receiptRepository.findReceiptByCode(code);
-        if  (receipt == null)
-        {
-            throw new RuntimeException("Receipt not found");
-        }
+        Receipt receipt = receiptRepository.findReceiptByCode(code)
+                .orElseThrow(() -> new RuntimeException("Receipt not found"));
+
         ReceiptDTO receiptDTO = new ReceiptDTO();
 
         receiptDTO.setCode(receipt.getCode());
@@ -56,11 +60,8 @@ public class ReceiptService
         {
             ReceiptLineDTO lineDTO = new ReceiptLineDTO();
             
-            ProductDTO productDTO = new ProductDTO();
-            productDTO.setCode(purchase.getProduct().getCode());
-            productDTO.setName(purchase.getProduct().getName());
-            
-            lineDTO.setProduct(productDTO);
+            lineDTO.setProductCode(purchase.getProduct().getCode());
+            lineDTO.setProductName(purchase.getProduct().getName());
             lineDTO.setQuantity(purchase.getQuantity());
             lineDTO.setPrice(purchase.getPrice());
             
@@ -99,7 +100,7 @@ public class ReceiptService
 
         if (receiptDTO.getCode() == null)
             throw new RuntimeException("Receipt code not valid");
-        if (receiptRepository.findReceiptByCode(receiptDTO.getCode()) != null)
+        if (receiptRepository.findReceiptByCode(receiptDTO.getCode()).isPresent())
             throw new RuntimeException("A receipt with this code already exists");
         receipt.setCode(receiptDTO.getCode());
 
@@ -109,13 +110,17 @@ public class ReceiptService
 
         if (receiptDTO.getTax().compareTo(BigDecimal.ZERO) <= 0 || receiptDTO.getTax().compareTo(receiptDTO.getAmount()) >= 0)
             throw new RuntimeException("Receipt taxes not valid");
-        receipt.setAmount(receiptDTO.getTax());
+        receipt.setTax(receiptDTO.getTax());
+
+        if (receiptDTO.getAmount().compareTo(receiptDTO.getTax()) <= 0 || receiptDTO.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+            throw new RuntimeException("Receipt amount must be greater than tax");
+        receipt.setAmount(receiptDTO.getAmount());
 
         if (receiptDTO.getUserEmail() == null)
             throw new RuntimeException("Receipt user email not valid");
-        if (!userRepository.existsByEmail(receiptDTO.getUserEmail()))
-            throw new RuntimeException("No user with this email exists");
-        receipt.setUser(userRepository.findByEmail(receiptDTO.getUserEmail()));
+
+        receipt.setUser(userRepository.findByEmail(receiptDTO.getUserEmail())
+            .orElseThrow(() -> new RuntimeException("No user with this email exists")));
 
         if (receiptDTO.getPaymentMethod() == null)
             throw new RuntimeException("Receipt payment method not valid");
@@ -134,25 +139,26 @@ public class ReceiptService
         BigDecimal total = BigDecimal.ZERO;
         for (ReceiptLineDTO lineDTO : lines)
         {
-            ProductDTO productDTO = lineDTO.getProduct();
+            String productCode = lineDTO.getProductCode();
+            String productName = lineDTO.getProductName();
             Integer quantity = lineDTO.getQuantity();
             BigDecimal price = lineDTO.getPrice();
 
-            if (productDTO == null)
-                throw new RuntimeException("Product not found");
+            if (productCode == null)
+                throw new RuntimeException("Product code not found");
             if (quantity == null || quantity <= 0)
                 throw new RuntimeException("Quantity not valid");
             if (price == null || price.compareTo(BigDecimal.ZERO) <= 0)
                 throw new RuntimeException("Price not valid");
 
-            if (productRepository.findByCode(productDTO.getCode()).isEmpty())
-                productService.addProduct(productDTO);
-            
-            Product product = productRepository.findByCode(productDTO.getCode())
+            if (productRepository.findByCode(productCode).isEmpty())
+                throw new RuntimeException("Product not found");
+
+            Product product = productRepository.findByCode(productCode)
                 .orElseGet(() -> {
                     Product newProduct = new Product();
-                    newProduct.setCode(productDTO.getCode());
-                    newProduct.setName(productDTO.getName());
+                    newProduct.setCode(productCode);
+                    newProduct.setName(productName);
                     return productRepository.save(newProduct);
                 });
             total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
@@ -172,7 +178,20 @@ public class ReceiptService
             throw new RuntimeException("Receipt amount mismatch: items total does not match receipt amount");
 
         receiptRepository.save(receipt);
+    }
 
+    @Transactional
+    public Receipt generateAndAttachPDF(Long receiptId) throws DocumentException
+    {
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+
+        byte[] pdfBytes = PDF.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
+
+        String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
+
+        receipt.setS3Key(s3Key);
+        return receiptRepository.save(receipt);
     }
 
     @Transactional(readOnly = true)
