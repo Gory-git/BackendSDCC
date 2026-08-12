@@ -121,4 +121,34 @@ public class ReceiptController
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Errore: " + e.getMessage());
         }
     }
+
+    @GetMapping("find-by-email-like/{userEmail}")
+    @PreAuthorize("hasAuthority('ROLE_admin')")
+    public ResponseEntity<List<ReceiptDTO>> getReceiptsByUser(@PathVariable String userEmail, @RequestParam("threshold") float threshold)
+    {
+        try
+        {
+            List<ReceiptDTO> receipts = receiptService.findByUserEmailLike(userEmail, threshold);
+            return ResponseEntity.ok(receipts);
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(List.of("Errore: " + e.getMessage())); // TODO vedere che vuole st'errore
+        }
+    }
+
+    @GetMapping("find-by-code-like/{code}")
+    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    public ResponseEntity<List<ReceiptDTO>> getReceiptsByCode(@PathVariable String code, @RequestParam("threshold") float threshold)
+    {
+        try
+        {
+            List<ReceiptDTO> receipts = receiptService.findByCodeLike(code, threshold);
+            return ResponseEntity.ok(receipts);
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(List.of("Errore: " + e.getMessage())); // TODO vedere che vuole st'errore
+        }
+    }
+
+    // TODO statistiche e query AI
 }
