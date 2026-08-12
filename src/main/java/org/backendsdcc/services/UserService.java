@@ -3,7 +3,7 @@ package org.backendsdcc.services;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.UserDTO;
-import org.backendsdcc.support.exceptions.AlreadyExistsException;
+import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -30,13 +30,13 @@ public class UserService
     }
 
     @Transactional
-    public UserDTO createUser() throws AlreadyExistsException
+    public UserDTO createUser() throws ConflictException
     {
         Jwt jwt = getCurrentJwt();
         if (userRepository.existsByEmail(jwt.getClaimAsString("email")))
-            throw new AlreadyExistsException("User with this email already exists");
+            throw new ConflictException("User with this email already exists");
         if (userRepository.existsByCognitoSub(jwt.getSubject()))
-            throw new AlreadyExistsException("User with this Cognito sub already exists");
+            throw new ConflictException("User with this Cognito sub already exists");
         User u = new User();
         u.setEmail(jwt.getClaimAsString("email"));
         u.setName(jwt.getClaimAsString("given_name"));

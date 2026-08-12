@@ -8,6 +8,7 @@ import org.backendsdcc.support.comparators.ReceiptAmountComparator;
 import org.backendsdcc.support.comparators.ReceiptDateComparator;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
+import org.backendsdcc.support.dto.UserDTO;
 import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,14 +37,18 @@ public class ReceiptService
     @Autowired
     private UserRepository userRepository;
     @Autowired
-    private ProductService productService;
+    private UserService userService;
 
     @Transactional(readOnly = true)
-    public ReceiptDTO getReceipt(String code)
+    public ReceiptDTO getReceipt(String code) throws NotFoundException
     {
+        UserDTO currentUser = userService.getCurrentUser();
+        String userEmail = currentUser.getEmail();
+        String role = currentUser.getRole();
         Receipt receipt = receiptRepository.findReceiptByCode(code)
                 .orElseThrow(() -> new NotFoundException("Receipt not found"));
-
+        if (!receipt.getUser().getEmail().equals(userEmail) || !role.equals("ROLE_admin"))
+            throw new NotFoundException("Receipt not found");
         return convertToDTO(receipt);
     }
 

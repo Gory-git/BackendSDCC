@@ -38,7 +38,7 @@ public class ProductService
     }
 
     @Transactional(readOnly = true)
-    public List<ProductDTO> getProducts()
+    public List<ProductDTO> getAllProducts()
     {
         List<Product> products = productRepository.findAll();
         List<ProductDTO> productDTOs = new ArrayList<>();
@@ -48,7 +48,7 @@ public class ProductService
     }
 
     @Transactional
-    public void addProduct(ProductDTO productDTO)
+    public void addProduct(ProductDTO productDTO) throws ConflictException, InvalidRequestException
     {
         Product product = new Product();
 
@@ -60,6 +60,14 @@ public class ProductService
         product.setName(productDTO.getName());
 
         productRepository.save(product);
+    }
+
+    @Transactional(readOnly = true)
+    public ProductDTO getProductByCode(String code) throws NotFoundException
+    {
+        Product product = productRepository.findByCode(code)
+            .orElseThrow(() -> new NotFoundException("Product not found"));
+        return convertToDTO(product);
     }
 
     @Transactional(readOnly = true)
