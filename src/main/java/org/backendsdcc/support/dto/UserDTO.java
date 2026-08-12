@@ -10,8 +10,8 @@ public class UserDTO
 {
     private String name;
     private String surname;
-    private String cf;
     private String email;
-    private Instant dateOfBirth;
+    private String phone;
+    private Instant birthDate;
     private String role;
 }

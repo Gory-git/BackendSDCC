@@ -20,9 +20,6 @@ public class User
     @Column(name = "user_id", nullable = false)
     private Long id;
 
-    @Column(name = "cf", nullable = false, unique = true, length = 16)
-    private String cf;
-
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -32,13 +29,13 @@ public class User
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "phone", nullable = false, unique = true , length = 20)
+    @Column(name = "phone", unique = true, length = 20)
     private String phone;
 
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private Instant birthDate;
 
-    @Column(name = "password", nullable = false)
+    @Column(name = "password")
     private String password;
 
     @Column(name = "role",  nullable = false)
@@ -51,4 +48,7 @@ public class User
     @Column(name = "updated_at")
     @LastModifiedDate
     private Instant updatedAt;
+
+    @Column(name = "cognito_sub", unique = true)
+    private String cognitoSub;
 }
