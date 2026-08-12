@@ -42,7 +42,7 @@ public class UserService
         u.setName(jwt.getClaimAsString("given_name"));
         u.setSurname(jwt.getClaimAsString("family_name"));
         u.setPhone(jwt.getClaimAsString("phone_number"));
-        u.setRole(determineRoleFromClaims(jwt));
+        u.setRole("ROLE_" + determineRoleFromClaims(jwt));
         u.setCreatedAt(java.time.Instant.now());
         u.setUpdatedAt(java.time.Instant.now());
         u.setCognitoSub(jwt.getSubject());

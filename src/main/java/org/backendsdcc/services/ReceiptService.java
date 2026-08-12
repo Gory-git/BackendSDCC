@@ -47,7 +47,7 @@ public class ReceiptService
         String role = currentUser.getRole();
         Receipt receipt = receiptRepository.findReceiptByCode(code)
                 .orElseThrow(() -> new NotFoundException("Receipt not found"));
-        if (!receipt.getUser().getEmail().equals(userEmail) || !role.equals("ROLE_admin"))
+        if (!receipt.getUser().getEmail().equals(userEmail) && !role.equals("ROLE_admin"))
             throw new NotFoundException("Receipt not found");
         return convertToDTO(receipt);
     }
@@ -84,8 +84,11 @@ public class ReceiptService
     }
 
     @Transactional(readOnly = true)
-    public List<ReceiptDTO> getAllReceiptsOrdered(User user, boolean date)
+    public List<ReceiptDTO> getAllReceiptsOrdered(boolean date) throws NotFoundException
     {
+        UserDTO currentUser = userService.getCurrentUser();
+        User user = userRepository.findByEmail(currentUser.getEmail())
+                .orElseThrow(() -> new NotFoundException("User not found"));
         List<Receipt> receipts = receiptRepository.findByUserWithPurchases(user);
         if (receipts == null || receipts.isEmpty())
             throw new NotFoundException("No receipt found");
@@ -102,7 +105,7 @@ public class ReceiptService
     }
 
     @Transactional
-    public void saveReceipt(ReceiptDTO receiptDTO)
+    public void saveReceipt(ReceiptDTO receiptDTO) throws ConflictException, InvalidRequestException, NotFoundException
     {
         if (receiptDTO == null)
             throw new InvalidRequestException("Receipt not valid");
@@ -179,7 +182,7 @@ public class ReceiptService
     }
 
     @Transactional(readOnly = true)
-    public List<ReceiptDTO> findByUserEmailLike(String email, float threshold)
+    public List<ReceiptDTO> findByUserEmailLike(String email, float threshold) throws InvalidRequestException
     {
         if (email == null || !userRepository.existsByEmail(email))
             throw new InvalidRequestException("User email not valid");
@@ -205,7 +208,7 @@ public class ReceiptService
     }
 
     @Transactional(readOnly = true)
-    public List<ReceiptDTO> findByCodeLike(String code, float threshold)
+    public List<ReceiptDTO> findByCodeLike(String code, float threshold) throws InvalidRequestException
     {
         if (code == null)
             throw new InvalidRequestException("Code not valid");
