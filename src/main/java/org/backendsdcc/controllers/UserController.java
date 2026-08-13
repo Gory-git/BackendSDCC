@@ -28,7 +28,7 @@ public class UserController
     private ProductService productService;
 
     @PostMapping("/register")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity registerUser()
     {
         try
@@ -42,7 +42,7 @@ public class UserController
     }
 
     @GetMapping("/page")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity userInfo()
     {
         try
@@ -55,7 +55,7 @@ public class UserController
     }
 
     @GetMapping("/product-of-the-month")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity getProductOfTheMonth()
     {
         try
@@ -68,7 +68,7 @@ public class UserController
     }
 
     @GetMapping("/product-of-time-span/{dateMin}/{dateMax}")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity getProductOfTimeSpan(@PathVariable Instant dateMin, @PathVariable Instant dateMax)
     {
         try

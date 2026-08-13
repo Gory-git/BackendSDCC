@@ -1,7 +1,6 @@
 package org.backendsdcc.support.comparators;
 
 import org.backendsdcc.models.Receipt;
-import java.math.BigDecimal;
 import java.util.Comparator;
 
 public class ReceiptAmountComparator implements Comparator<Receipt>

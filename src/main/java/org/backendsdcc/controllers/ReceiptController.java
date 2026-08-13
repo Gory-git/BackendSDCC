@@ -3,7 +3,6 @@ package org.backendsdcc.controllers;
 import com.itextpdf.text.DocumentException;
 import org.backendsdcc.services.PDFService;
 import org.backendsdcc.services.ReceiptService;
-import org.backendsdcc.services.S3Service;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
@@ -12,14 +11,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/receipt")
@@ -36,7 +32,7 @@ public class ReceiptController
     private PDFService pdfService;
 
     @GetMapping("/{code}")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<ReceiptDTO> getReceipt(@PathVariable String code)
     {
         try
@@ -50,7 +46,7 @@ public class ReceiptController
     }
 
     @GetMapping("/all/{date}")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<List<ReceiptDTO>> getAllReceipts(@PathVariable Boolean date)
     {
         try
@@ -64,7 +60,7 @@ public class ReceiptController
     }
 
     @PostMapping("/add")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<String> addReceipt(@RequestParam ReceiptDTO receiptDTO)
     {
         try
@@ -84,7 +80,7 @@ public class ReceiptController
     }
 
     @PostMapping("/upload-pdf")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<String> uploadPDF(@RequestParam("file") MultipartFile file)
     {
         try
@@ -107,7 +103,7 @@ public class ReceiptController
     }
 
     @GetMapping("/pdf/{code}")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<String> getPDFUrl(@PathVariable String code)
     {
         try
@@ -127,7 +123,7 @@ public class ReceiptController
     }
 
     @GetMapping("find-by-email-like/{userEmail}")
-    @PreAuthorize("hasAuthority('ROLE_admin')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> getReceiptsByUser(@PathVariable String userEmail, @RequestParam("threshold") float threshold)
     {
         try
@@ -141,7 +137,7 @@ public class ReceiptController
     }
 
     @GetMapping("find-by-code-like/{code}")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
     public ResponseEntity<?> getReceiptsByCode(@PathVariable String code, @RequestParam("threshold") float threshold)
     {
         try

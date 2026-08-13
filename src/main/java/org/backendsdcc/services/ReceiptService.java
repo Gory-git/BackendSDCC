@@ -1,7 +1,5 @@
 package org.backendsdcc.services;
 
-import com.itextpdf.text.DocumentException;
-import jakarta.persistence.EntityNotFoundException;
 import org.backendsdcc.models.*;
 import org.backendsdcc.repositories.*;
 import org.backendsdcc.support.comparators.ReceiptAmountComparator;
@@ -9,7 +7,6 @@ import org.backendsdcc.support.comparators.ReceiptDateComparator;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.dto.UserDTO;
-import org.backendsdcc.support.pdf.PDF;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -47,7 +44,7 @@ public class ReceiptService
         String role = currentUser.getRole();
         Receipt receipt = receiptRepository.findReceiptByCode(code)
                 .orElseThrow(() -> new NotFoundException("Receipt not found"));
-        if (!receipt.getUser().getEmail().equals(userEmail) && !role.equals("ROLE_admin"))
+        if (!receipt.getUser().getEmail().equals(userEmail) && !role.equals("ROLE_ADMIN"))
             throw new NotFoundException("Receipt not found");
         return convertToDTO(receipt);
     }
@@ -132,7 +129,7 @@ public class ReceiptService
         User currentUser = userRepository.findByEmail(userService.getCurrentUser().getEmail())
                 .orElseThrow(() -> new InvalidRequestException("Current user not found"));
 
-        if (!currentUser.getRole().equals("ROLE_admin") && !currentUser.getEmail().equals(receiptDTO.getUserEmail()))
+        if (!currentUser.getRole().equals("ROLE_ADMIN") && !currentUser.getEmail().equals(receiptDTO.getUserEmail()))
             throw new InvalidRequestException("You are not authorized to add a receipt for another user");
 
         receipt.setUser(userRepository.findByEmail(receiptDTO.getUserEmail())
@@ -195,7 +192,7 @@ public class ReceiptService
             throw new InvalidRequestException("User email not valid");
         if (threshold < 0 || threshold > 1)
             throw new InvalidRequestException("Threshold not valid");
-        if (!userService.getCurrentUser().getRole().equals("ROLE_admin") && !userService.getCurrentUser().getEmail().equals(email))
+        if (!userService.getCurrentUser().getRole().equals("ROLE_ADMIN") && !userService.getCurrentUser().getEmail().equals(email))
             throw new InvalidRequestException("Unhauthorized");
 
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
@@ -242,7 +239,7 @@ public class ReceiptService
         // remove duplicates
         List<Receipt> receipts = new ArrayList<>(new HashSet<>(receiptsWithDuplicates));
         for (Receipt receipt : receipts)
-            if (currentUser.getRole().equals("ROLE_admin") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
+            if (currentUser.getRole().equals("ROLE_ADMIN") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
                 receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
     }

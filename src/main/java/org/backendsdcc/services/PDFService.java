@@ -3,7 +3,6 @@ package org.backendsdcc.services;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import com.itextpdf.text.pdf.parser.PdfTextExtractor;
-import jakarta.persistence.EntityNotFoundException;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
@@ -19,17 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
-import org.backendsdcc.support.exceptions.NotFoundException;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class PDFService
 {
-    private final static String currencySymbol = "€";
     private static final long MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
     @Autowired
     private ReceiptRepository receiptRepository;
@@ -85,7 +81,7 @@ public class PDFService
 
         if (!userRepository.existsByEmail(receiptParsed.getUserEmail()))
             throw new NotFoundException("User not found: " + receiptParsed.getUserEmail());
-        if (!userService.getCurrentUser().getEmail().equals(receiptParsed.getUserEmail()) && !userService.getCurrentUser().getRole().equals("ROLE_admin"))
+        if (!userService.getCurrentUser().getEmail().equals(receiptParsed.getUserEmail()) && !userService.getCurrentUser().getRole().equals("ROLE_ADMIN"))
             throw new InvalidRequestException("You are not authorized to import a receipt for another user");
 
         Receipt receipt = new Receipt();
@@ -132,7 +128,7 @@ public class PDFService
         Receipt receipt = receiptRepository.findReceiptByCode(code)
                 .orElseThrow(() -> new NotFoundException("Receipt not found"));
 
-        if (!userService.getCurrentUser().getRole().equals("ROLE_admin") && !userService.getCurrentUser().getEmail().equals(receipt.getUser().getEmail()))
+        if (!userService.getCurrentUser().getRole().equals("ROLE_ADMIN") && !userService.getCurrentUser().getEmail().equals(receipt.getUser().getEmail()))
             throw new InvalidRequestException("You are not authorized to access this resource");
 
         byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
