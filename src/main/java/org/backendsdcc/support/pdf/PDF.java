@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -99,7 +98,6 @@ public class PDF
     {
         for (Purchase purchase : purchases)
         {
-
             table.setWidthPercentage(100);
             table.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
             table.getDefaultCell().setVerticalAlignment(Element.ALIGN_MIDDLE);

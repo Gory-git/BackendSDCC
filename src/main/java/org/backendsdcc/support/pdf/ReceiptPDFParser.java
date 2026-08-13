@@ -32,7 +32,7 @@ public class ReceiptPDFParser
             Pattern.compile("^\\s*([^\\|]+)\\|([^\\|]+)\\|([\\d]+)\\|([\\d.]+)\\s*$",
                     Pattern.MULTILINE);
 
-    public static ReceiptDTO parse(String pdfContent)
+    public static ReceiptDTO parse(String pdfContent) throws IllegalArgumentException
     {
         ReceiptDTO result = new ReceiptDTO();
 
@@ -56,7 +56,7 @@ public class ReceiptPDFParser
         return result;
     }
 
-    private static String extractField(String content, Pattern pattern, String fieldName)
+    private static String extractField(String content, Pattern pattern, String fieldName) throws IllegalArgumentException
     {
         Matcher matcher = pattern.matcher(content);
         if (!matcher.find())
@@ -64,7 +64,7 @@ public class ReceiptPDFParser
         return matcher.group(1).trim();
     }
 
-    private static void parseProductLines(String content, ReceiptDTO receipt)
+    private static void parseProductLines(String content, ReceiptDTO receipt) throws IllegalArgumentException
     {
         Matcher matcher = LINE_PATTERN.matcher(content);
         while (matcher.find())

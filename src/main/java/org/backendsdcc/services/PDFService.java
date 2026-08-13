@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class PDFService
 {
     private final static String currencySymbol = "€";
+    private static final long MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
     @Autowired
     private ReceiptRepository receiptRepository;
     @Autowired
@@ -42,11 +43,21 @@ public class PDFService
     private PDF pdfGenerator;
     @Autowired
     private S3Service s3Service;
+    @Autowired
+    private UserService userService;
 
 
     @Transactional
-    public void saveReceiptFromUniformPDF (MultipartFile file) throws IOException
+    public void importReceiptFromPdf (MultipartFile file) throws IOException, InvalidRequestException, ConflictException, NotFoundException
     {
+        if (file == null || file.isEmpty())
+            throw new InvalidRequestException("File is empty or null");
+        if (!"application/pdf".equalsIgnoreCase(file.getContentType()))
+            throw new InvalidRequestException("Solo PDF ammessi");
+        if (file.getSize() > MAX_SIZE_BYTES)
+            throw new InvalidRequestException("File troppo grande");
+
+
         StringBuilder pdfContent = new StringBuilder();
         // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
@@ -71,6 +82,11 @@ public class PDFService
 
         if (receiptRepository.findReceiptByCode(receiptParsed.getCode()).isPresent())
             throw new ConflictException("Receipt already exists");
+
+        if (!userRepository.existsByEmail(receiptParsed.getUserEmail()))
+            throw new NotFoundException("User not found: " + receiptParsed.getUserEmail());
+        if (!userService.getCurrentUser().getEmail().equals(receiptParsed.getUserEmail()) && !userService.getCurrentUser().getRole().equals("ROLE_admin"))
+            throw new InvalidRequestException("You are not authorized to import a receipt for another user");
 
         Receipt receipt = new Receipt();
         receipt.setCode(receiptParsed.getCode());
@@ -102,30 +118,29 @@ public class PDFService
     }
 
     @Transactional(readOnly = true)
-    public byte[] getPDFFromReceiptCode(String code) throws DocumentException, IOException
+    public String getPDFUrlFromReceiptCode(String code) throws DocumentException, NotFoundException, InvalidRequestException
     {
-        return getPDFFromReceipt(receiptRepository.findReceiptByCode(code)
-            .orElseThrow(() -> new NotFoundException("Receipt not found: " + code)));
+        if (code == null || code.isBlank())
+            throw new InvalidRequestException("Invalid receipt code");
+        return generateAndAttachPDF(code);
     }
 
-    @Transactional(readOnly = true)
-    public byte[] getPDFFromReceipt(Receipt receipt) throws DocumentException, IOException
-    {
-        List<Purchase> purchases = purchaseRepository.findByReceipt(receipt);
-        return pdfGenerator.generatePDF(receipt, purchases);
-    }
 
     @Transactional
-    public Receipt generateAndAttachPDF(Long receiptId) throws DocumentException
+    public String generateAndAttachPDF(String code) throws NotFoundException, DocumentException, InvalidRequestException
     {
-        Receipt receipt = receiptRepository.findById(receiptId)
-                .orElseThrow(() -> new NotFoundException("Receipt not found: " + receiptId));
+        Receipt receipt = receiptRepository.findReceiptByCode(code)
+                .orElseThrow(() -> new NotFoundException("Receipt not found"));
+
+        if (!userService.getCurrentUser().getRole().equals("ROLE_admin") && !userService.getCurrentUser().getEmail().equals(receipt.getUser().getEmail()))
+            throw new InvalidRequestException("You are not authorized to access this resource");
 
         byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
 
         String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
 
         receipt.setS3Key(s3Key);
-        return receiptRepository.save(receipt);
+        receiptRepository.save(receipt);
+        return s3Service.generatePresignedUrl(s3Key, 15);
     }
 }

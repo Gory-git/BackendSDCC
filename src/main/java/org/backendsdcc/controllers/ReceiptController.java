@@ -1,5 +1,7 @@
 package org.backendsdcc.controllers;
 
+import com.itextpdf.text.DocumentException;
+import org.backendsdcc.services.PDFService;
 import org.backendsdcc.services.ReceiptService;
 import org.backendsdcc.services.S3Service;
 import org.backendsdcc.support.dto.ReceiptDTO;
@@ -13,7 +15,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -29,30 +33,7 @@ public class ReceiptController
     @Autowired
     private ReceiptService receiptService;
     @Autowired
-    private S3Service s3Service;
-
-    @GetMapping("/{code}/pdf")
-    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
-    public ResponseEntity<Map<String, String>> getPDFDownloadUrl(
-            @PathVariable String code,
-            @AuthenticationPrincipal UserDetails userDetails)
-    {
-        try
-        {
-            ReceiptDTO receipt = receiptService.getReceipt(code);
-            if (receipt.getS3Key() == null)
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("error", "Nessun PDF allegato a questa ricevuta"));
-
-            // URL valido 15 minuti — sicuro, non espone il bucket
-            String url = s3Service.generatePresignedUrl(receipt.getS3Key(), 15);
-            return ResponseEntity.ok(Map.of("downloadUrl", url));
-        } catch (NotFoundException e)
-        {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Ricevuta non trovata"));
-        }
-    }
+    private PDFService pdfService;
 
     @GetMapping("/{code}")
     @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
@@ -102,13 +83,13 @@ public class ReceiptController
         }
     }
 
-    @PostMapping("/upload-pdf/{code}")
+    @PostMapping("/upload-pdf")
     @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
-    public ResponseEntity<String> uploadPDF(@PathVariable String code, @RequestParam("file") byte[] file)
+    public ResponseEntity<String> uploadPDF(@RequestParam("file") MultipartFile file)
     {
         try
         {
-            receiptService.uploadPDF(code, file); // TODO mi sono dimenticato di fare l'upload del PDF su S3, quindi non funziona
+            pdfService.importReceiptFromPdf(file);
             return ResponseEntity.ok("PDF caricato con successo");
         } catch (NotFoundException e)
         {
@@ -119,12 +100,35 @@ public class ReceiptController
         } catch (ConflictException e)
         {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Errore: " + e.getMessage());
+        } catch (IOException e)
+        {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Errore durante l'elaborazione del PDF: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/pdf/{code}")
+    @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
+    public ResponseEntity<String> getPDFUrl(@PathVariable String code)
+    {
+        try
+        {
+            String pdfUrl = pdfService.getPDFUrlFromReceiptCode(code);
+            return ResponseEntity.ok(pdfUrl);
+        } catch (NotFoundException e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Errore: " + e.getMessage());
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
+        } catch (DocumentException e)
+        {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Errore durante la generazione del PDF: " + e.getMessage());
         }
     }
 
     @GetMapping("find-by-email-like/{userEmail}")
     @PreAuthorize("hasAuthority('ROLE_admin')")
-    public ResponseEntity<List<ReceiptDTO>> getReceiptsByUser(@PathVariable String userEmail, @RequestParam("threshold") float threshold)
+    public ResponseEntity<?> getReceiptsByUser(@PathVariable String userEmail, @RequestParam("threshold") float threshold)
     {
         try
         {
@@ -132,13 +136,13 @@ public class ReceiptController
             return ResponseEntity.ok(receipts);
         } catch (InvalidRequestException e)
         {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(List.of("Errore: " + e.getMessage())); // TODO vedere che vuole st'errore
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
         }
     }
 
     @GetMapping("find-by-code-like/{code}")
     @PreAuthorize("hasAnyRole('ROLE_user','ROLE_admin')")
-    public ResponseEntity<List<ReceiptDTO>> getReceiptsByCode(@PathVariable String code, @RequestParam("threshold") float threshold)
+    public ResponseEntity<?> getReceiptsByCode(@PathVariable String code, @RequestParam("threshold") float threshold)
     {
         try
         {
@@ -146,7 +150,7 @@ public class ReceiptController
             return ResponseEntity.ok(receipts);
         } catch (InvalidRequestException e)
         {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(List.of("Errore: " + e.getMessage())); // TODO vedere che vuole st'errore
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
         }
     }
 

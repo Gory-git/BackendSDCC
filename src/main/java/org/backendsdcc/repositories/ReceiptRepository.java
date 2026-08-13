@@ -21,6 +21,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
             "WHERE r.user = :user")
     List<Receipt> findByUserWithPurchases(@Param("user") User user);
 
+    boolean existsByCode(String code);
 
     Optional<Receipt> findReceiptByCode(String code);
 

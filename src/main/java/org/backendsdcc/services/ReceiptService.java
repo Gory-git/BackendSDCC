@@ -89,6 +89,7 @@ public class ReceiptService
         UserDTO currentUser = userService.getCurrentUser();
         User user = userRepository.findByEmail(currentUser.getEmail())
                 .orElseThrow(() -> new NotFoundException("User not found"));
+
         List<Receipt> receipts = receiptRepository.findByUserWithPurchases(user);
         if (receipts == null || receipts.isEmpty())
             throw new NotFoundException("No receipt found");
@@ -127,6 +128,12 @@ public class ReceiptService
 
         if (receiptDTO.getUserEmail() == null)
             throw new InvalidRequestException("Receipt user email not valid");
+
+        User currentUser = userRepository.findByEmail(userService.getCurrentUser().getEmail())
+                .orElseThrow(() -> new InvalidRequestException("Current user not found"));
+
+        if (!currentUser.getRole().equals("ROLE_admin") && !currentUser.getEmail().equals(receiptDTO.getUserEmail()))
+            throw new InvalidRequestException("You are not authorized to add a receipt for another user");
 
         receipt.setUser(userRepository.findByEmail(receiptDTO.getUserEmail())
             .orElseThrow(() -> new NotFoundException("No user with this email exists")));
@@ -188,6 +195,8 @@ public class ReceiptService
             throw new InvalidRequestException("User email not valid");
         if (threshold < 0 || threshold > 1)
             throw new InvalidRequestException("Threshold not valid");
+        if (!userService.getCurrentUser().getRole().equals("ROLE_admin") && !userService.getCurrentUser().getEmail().equals(email))
+            throw new InvalidRequestException("Unhauthorized");
 
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
         List<Receipt> receiptsWithDuplicates = receiptRepository.findByUserEmailLike("%"+email+"%");
@@ -214,6 +223,10 @@ public class ReceiptService
             throw new InvalidRequestException("Code not valid");
         if (threshold < 0 || threshold > 1)
             throw new InvalidRequestException("Threshold not valid");
+
+        User currentUser = userRepository.findByEmail(userService.getCurrentUser().getEmail())
+                .orElseThrow(() -> new InvalidRequestException("Current user not found"));
+
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
         List<Receipt> receiptsWithDuplicates = receiptRepository.findByCodeLike("%"+code+"%");
         receiptsWithDuplicates.addAll(receiptRepository.findByCodeContains(code));
@@ -229,7 +242,8 @@ public class ReceiptService
         // remove duplicates
         List<Receipt> receipts = new ArrayList<>(new HashSet<>(receiptsWithDuplicates));
         for (Receipt receipt : receipts)
-            receiptDTOs.add(convertToDTO(receipt));
+            if (currentUser.getRole().equals("ROLE_admin") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
+                receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
     }
 
