@@ -35,9 +35,6 @@ public class User
     @Column(name = "birth_date")
     private Instant birthDate;
 
-    @Column(name = "password")
-    private String password;
-
     @Column(name = "role",  nullable = false)
     private String role;
 
@@ -49,6 +46,6 @@ public class User
     @LastModifiedDate
     private Instant updatedAt;
 
-    @Column(name = "cognito_sub", unique = true)
-    private String cognitoSub;
+    @Column(name = "firebase_uid", unique = true)
+    private String firebaseUid;
 }

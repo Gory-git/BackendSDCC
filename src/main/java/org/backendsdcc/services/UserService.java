@@ -25,28 +25,39 @@ public class UserService
     {
         Jwt jwt = getCurrentJwt();
         String sub = jwt.getSubject();
-        User user = userRepository.findByCognitoSub(sub).orElseThrow(() -> new NotFoundException("User not found"));
+        User user = userRepository.findByFirebaseUid(sub).orElseThrow(() -> new NotFoundException("User not found"));
         return convertToDTO(user);
+    }
+
+    @Transactional
+    public UserDTO ensureLocalUserExists(Jwt jwt) throws ConflictException
+    {
+        String firebaseUid = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        
+        if (userRepository.findByFirebaseUid(firebaseUid).isPresent())
+            return convertToDTO(userRepository.findByFirebaseUid(firebaseUid).get());
+        
+        if (userRepository.existsByEmail(email))
+            throw new ConflictException("User with this email already exists");
+        
+        User u = new User();
+        u.setEmail(email);
+        u.setName(jwt.getClaimAsString("given_name"));
+        u.setSurname(jwt.getClaimAsString("family_name"));
+        u.setPhone(jwt.getClaimAsString("phone_number"));
+        u.setRole(determineRoleFromClaims(jwt));
+        u.setCreatedAt(java.time.Instant.now());
+        u.setUpdatedAt(java.time.Instant.now());
+        u.setFirebaseUid(firebaseUid);
+        return convertToDTO(userRepository.save(u));
     }
 
     @Transactional
     public UserDTO createUser() throws ConflictException
     {
         Jwt jwt = getCurrentJwt();
-        if (userRepository.existsByEmail(jwt.getClaimAsString("email")))
-            throw new ConflictException("User with this email already exists");
-        if (userRepository.existsByCognitoSub(jwt.getSubject()))
-            throw new ConflictException("User with this Cognito sub already exists");
-        User u = new User();
-        u.setEmail(jwt.getClaimAsString("email"));
-        u.setName(jwt.getClaimAsString("given_name"));
-        u.setSurname(jwt.getClaimAsString("family_name"));
-        u.setPhone(jwt.getClaimAsString("phone_number"));
-        u.setRole("ROLE_" + determineRoleFromClaims(jwt));
-        u.setCreatedAt(java.time.Instant.now());
-        u.setUpdatedAt(java.time.Instant.now());
-        u.setCognitoSub(jwt.getSubject());
-        return convertToDTO(userRepository.save(u));
+        return ensureLocalUserExists(jwt);
     }
 
     private static UserDTO convertToDTO(User user)
@@ -63,9 +74,10 @@ public class UserService
 
     private String determineRoleFromClaims(Jwt jwt)
     {
-        List<String> groups = jwt.getClaimAsStringList("cognito:groups");
-        if (groups != null && groups.contains("ADMIN")) return "ADMIN";
-        return "USER";
+        // Firebase usa custom claims; se hai impostato un claim "role" custom nel token
+        String customRole = jwt.getClaimAsString("role");
+        if (customRole != null && customRole.equalsIgnoreCase("admin")) return "ROLE_ADMIN";
+        return "ROLE_USER";
     }
 
     private Jwt getCurrentJwt() {

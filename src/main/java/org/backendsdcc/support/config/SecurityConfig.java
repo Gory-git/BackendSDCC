@@ -47,77 +47,48 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            // preferisco leggermi direttamente il claim e trasformarlo in ROLE_*
-            List<String> groups = jwt.getClaimAsStringList("cognito:groups");
-            if (groups == null) {
-                String single = jwt.getClaimAsString("cognito:groups");
-                groups = single == null ? Collections.emptyList() : List.of(single);
+            // Firebase: leggi il claim "role" custom (se presente)
+            String role = jwt.getClaimAsString("role");
+            if (role != null && !role.isBlank()) {
+                return List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
             }
-            return groups.stream()
-                    .map(g -> new SimpleGrantedAuthority("ROLE_" + g))
-                    .collect(Collectors.toList());
+            // Default: ROLE_USER
+            return List.of(new SimpleGrantedAuthority("ROLE_USER"));
         });
 
         return converter;
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
-                                 @Value("${cognito.clientId}") String clientId) 
+    public JwtDecoder jwtDecoder(@Value("${firebase.project-id}") String projectId) 
     {
+        // Firebase issuer: https://securetoken.google.com/<project-id>
+        String issuer = "https://securetoken.google.com/" + projectId;
+        
         NimbusJwtDecoder jwtDecoder = (NimbusJwtDecoder) JwtDecoders.fromOidcIssuerLocation(issuer);
-
+        
+        // Validatore issuer di default
         OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
-        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(clientId);
-        OAuth2TokenValidator<Jwt> tokenUseValidator = new TokenUseValidator("access"); // optional: ensure token_use == "access"
-
-        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator, tokenUseValidator));
+        
+        // Validatore audience: Firebase usa projectId come audience
+        OAuth2TokenValidator<Jwt> audienceValidator = new FirebaseAudienceValidator(projectId);
+        
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator));
         return jwtDecoder;
     }
     
-    public static class AudienceValidator implements OAuth2TokenValidator<Jwt>
+    public static class FirebaseAudienceValidator implements OAuth2TokenValidator<Jwt>
     {
-        private final String requiredClientId;
-        public AudienceValidator(String requiredClientId) { this.requiredClientId = requiredClientId; }
+        private final String firebaseProjectId;
+        public FirebaseAudienceValidator(String firebaseProjectId) { this.firebaseProjectId = firebaseProjectId; }
 
         @Override
         public OAuth2TokenValidatorResult validate(Jwt token) 
         {
-            // Cognito access tokens can carry "client_id" or "aud"
-            String clientIdClaim = token.getClaimAsString("client_id");
+            // Firebase mette il project ID in "aud"
             List<String> aud = token.getClaimAsStringList("aud");
-            boolean ok = requiredClientId.equals(clientIdClaim) || (aud != null && aud.contains(requiredClientId));
-            return ok ? OAuth2TokenValidatorResult.success() : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Invalid audience", null));
+            boolean ok = aud != null && aud.contains(firebaseProjectId);
+            return ok ? OAuth2TokenValidatorResult.success() : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Invalid audience for Firebase", null));
         }
     }
-    
-    public static class TokenUseValidator implements OAuth2TokenValidator<Jwt>
-    {
-        private final String requiredTokenUse;
-        public TokenUseValidator(String requiredTokenUse) { this.requiredTokenUse = requiredTokenUse; }
-
-        @Override
-        public OAuth2TokenValidatorResult validate(Jwt token) 
-        {
-            String tokenUse = token.getClaimAsString("token_use");
-            return requiredTokenUse.equals(tokenUse)
-                    ? OAuth2TokenValidatorResult.success()
-                    : OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "Wrong token_use: " + tokenUse, null));
-        }
-    }
-/*
-public void ensureLocalUserExists(Jwt jwt) 
-{
-    String sub = jwt.getSubject(); // cognito sub
-    userRepository.findByCognitoSub(sub).orElseGet(
-    () ->{
-        User u = new User();
-        u.setCognitoSub(sub);
-        u.setEmail(jwt.getClaimAsString("email"));
-        u.setName(jwt.getClaimAsString("given_name"));
-        u.setRole(determineRoleFromClaims(jwt)); // optional
-        return userRepository.save(u);
-    });
-}
- */
 }

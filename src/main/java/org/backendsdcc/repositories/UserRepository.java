@@ -15,11 +15,9 @@ public interface UserRepository extends JpaRepository<User, Long>
 
     boolean existsByEmail(String email);
 
-    boolean existsByCognitoSub(String cognitoSub);
+    boolean existsByFirebaseUid(String firebaseUid);
 
-    User findByEmailIgnoreCaseAndPassword(String email, String password);
-
-    Optional<User> findByCognitoSub(String cognitoSub);
+    Optional<User> findByFirebaseUid(String firebaseUid);
 
     Optional<User> findByEmail(String email);
 

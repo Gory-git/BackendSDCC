@@ -4,3 +4,15 @@ services:
     image: nginx:latest
     ports:
       - "80:80"
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: sdcc
+      POSTGRES_PASSWORD: sdcc_pass
+      POSTGRES_DB: backendsdcc_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
