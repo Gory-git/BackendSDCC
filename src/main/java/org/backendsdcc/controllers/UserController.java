@@ -84,17 +84,17 @@ public class UserController
     }
 
     @GetMapping("/list")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity listUsers()
     {
         return new ResponseEntity<>(userService.getAllUsers(), HttpStatus.OK);
     }
 
     @GetMapping("/find")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity findUsers(@RequestParam String email, @RequestParam float threshold)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity findUsers(@RequestParam String query, @RequestParam float threshold)
     {
-        return new ResponseEntity<>(userService.findByEmailLike(email, threshold), HttpStatus.OK);
+        return new ResponseEntity<>(userService.searchUsers(query, threshold), HttpStatus.OK);
     }
 
 }

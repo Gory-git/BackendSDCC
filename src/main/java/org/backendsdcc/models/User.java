@@ -32,6 +32,9 @@ public class User
     @Column(name = "phone", unique = true, length = 20)
     private String phone;
 
+    @Column(name = "codice_fiscale", unique = true, length = 16)
+    private String codiceFiscale;
+
     @Column(name = "role",  nullable = false)
     private String role;
 

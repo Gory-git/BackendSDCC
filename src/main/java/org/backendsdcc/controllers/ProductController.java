@@ -35,7 +35,7 @@ public class ProductController
     }
 
     @PostMapping("/add")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> addProduct(@RequestBody ProductDTO productDTO)
     {
         try
@@ -80,7 +80,7 @@ public class ProductController
     }
 
     @GetMapping("/product-of-the-month/{userEmail}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDTO> getProductOfTheMonth(@PathVariable String userEmail)
     {
         try
@@ -94,7 +94,7 @@ public class ProductController
     }
 
     @GetMapping("/product-of-time-span/{userEmail}/{dateMin}/{dateMax}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductDTO> getProductOfTimeSpan(@PathVariable String userEmail, @PathVariable Instant dateMin, @PathVariable Instant dateMax)
     {
         try
@@ -109,7 +109,7 @@ public class ProductController
 
     // ProductController.java
     @DeleteMapping("/{code}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteProduct(@PathVariable String code)
     {
         try

@@ -125,7 +125,7 @@ public class ReceiptController
     }
 
     @GetMapping("find-by-email-like/{userEmail}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getReceiptsByUser(@PathVariable String userEmail, @RequestParam("threshold") float threshold)
     {
         try
@@ -145,6 +145,20 @@ public class ReceiptController
         try
         {
             List<ReceiptDTO> receipts = receiptService.findByCodeLike(code, threshold);
+            return ResponseEntity.ok(receipts);
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/find-by-amount")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<?> getReceiptsByAmountRange(@RequestParam("amountMin") java.math.BigDecimal amountMin, @RequestParam("amountMax") java.math.BigDecimal amountMax)
+    {
+        try
+        {
+            List<ReceiptDTO> receipts = receiptService.findByAmountBetween(amountMin, amountMax);
             return ResponseEntity.ok(receipts);
         } catch (InvalidRequestException e)
         {

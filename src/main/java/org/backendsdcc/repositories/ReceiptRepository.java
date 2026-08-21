@@ -27,6 +27,14 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
 
     List<Receipt> findReceiptsByUserAndDateBetween(User user, Instant dateMin, Instant dateMax);
 
+    List<Receipt> findByDateBetween(Instant dateMin, Instant dateMax);
+
+    @Query("SELECT DISTINCT r FROM Receipt r " +
+            "LEFT JOIN FETCH r.purchases p " +
+            "LEFT JOIN FETCH p.product " +
+            "WHERE r.date BETWEEN :dateMin AND :dateMax")
+    List<Receipt> findByDateBetweenWithPurchases(@Param("dateMin") Instant dateMin, @Param("dateMax") Instant dateMax);
+
     List<Receipt> findByUserEmailLike(String email);
 
     List<Receipt> findByUserEmailContains(String email);

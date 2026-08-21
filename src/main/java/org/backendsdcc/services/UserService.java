@@ -37,27 +37,30 @@ public class UserService
     }
 
     @Transactional(readOnly = true)
-    public List<UserDTO> findByEmailLike(String email, float threshold) throws InvalidRequestException
+    public List<UserDTO> searchUsers(String query, float threshold) throws InvalidRequestException
     {
-        if (email == null)
-            throw new InvalidRequestException("User email not valid");
+        if (query == null || query.isBlank())
+            throw new InvalidRequestException("Query not valid");
         if (threshold < 0 || threshold > 1)
             throw new InvalidRequestException("Threshold not valid");
         if (!getCurrentUser().getRole().equals("ROLE_ADMIN"))
             throw new InvalidRequestException("Unhauthorized");
 
-        List<UserDTO> userDTOs = new ArrayList<>();
-        List<User> usersWithDuplicates = userRepository.findByEmailLike("%"+email+"%");
-        usersWithDuplicates.addAll(userRepository.findByEmailContains(email));
-        // fuzzy search
+        List<User> usersWithDuplicates = new ArrayList<>(userRepository.searchByTerm(query));
+
+        // fuzzy search: email, nome, cognome, codice fiscale
         List<User> allUsers = userRepository.findAll(PageRequest.of(0, 500)).getContent();
 
         usersWithDuplicates.addAll(allUsers.stream()
-                .filter(user -> jaroWinklerSimilarity.apply(user.getEmail(), email) > threshold)
+                .filter(user -> jaroWinklerSimilarity.apply(user.getEmail(), query) > threshold
+                        || jaroWinklerSimilarity.apply(user.getName(), query) > threshold
+                        || jaroWinklerSimilarity.apply(user.getSurname(), query) > threshold
+                        || (user.getCodiceFiscale() != null && jaroWinklerSimilarity.apply(user.getCodiceFiscale(), query) > threshold))
                 .toList());
 
         // remove duplicates
         List<User> uniqueUsers = new ArrayList<>(new HashSet<>(usersWithDuplicates));
+        List<UserDTO> userDTOs = new ArrayList<>();
         for (User user : uniqueUsers)
             userDTOs.add(convertToDTO(user));
         return userDTOs;
@@ -91,6 +94,7 @@ public class UserService
         u.setName(userDTO.getName());
         u.setSurname(userDTO.getSurname());
         u.setPhone(userDTO.getPhone());
+        u.setCodiceFiscale(userDTO.getCodiceFiscale());
         u.setRole(determineRoleFromClaims(jwt));
         u.setCreatedAt(java.time.Instant.now());
         u.setUpdatedAt(java.time.Instant.now());
@@ -105,6 +109,7 @@ public class UserService
         dto.setSurname(user.getSurname());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
+        dto.setCodiceFiscale(user.getCodiceFiscale());
         dto.setRole(user.getRole());
         return dto;
     }

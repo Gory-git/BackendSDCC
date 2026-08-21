@@ -1,10 +1,14 @@
 package org.backendsdcc.support.config;
 
+import org.backendsdcc.models.User;
+import org.backendsdcc.repositories.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,7 +29,11 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -68,11 +76,11 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            String role = jwt.getClaimAsString("role");
-            if (role != null && !role.isBlank()) {
-                return List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
-            }
-            return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+            String firebaseUid = jwt.getSubject();
+            String role = userRepository.findByFirebaseUid(firebaseUid)
+                    .map(User::getRole) // già "ROLE_ADMIN"/"ROLE_USER", non ri-prefissare
+                    .orElse("ROLE_USER");
+            return List.of(new SimpleGrantedAuthority(role));
         });
 
         return converter;

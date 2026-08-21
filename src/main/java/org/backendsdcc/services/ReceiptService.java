@@ -249,6 +249,27 @@ public class ReceiptService
         return receiptDTOs;
     }
 
+    @Transactional(readOnly = true)
+    public List<ReceiptDTO> findByAmountBetween(BigDecimal amountMin, BigDecimal amountMax) throws InvalidRequestException
+    {
+        if (amountMin == null || amountMax == null)
+            throw new InvalidRequestException("Amount range not valid");
+        if (amountMin.compareTo(BigDecimal.ZERO) < 0 || amountMax.compareTo(BigDecimal.ZERO) < 0)
+            throw new InvalidRequestException("Amount range not valid");
+        if (amountMin.compareTo(amountMax) > 0)
+            throw new InvalidRequestException("Invalid amount range given");
+
+        User currentUser = userRepository.findByEmail(userService.getCurrentUser().getEmail())
+                .orElseThrow(() -> new InvalidRequestException("Current user not found"));
+
+        List<Receipt> receipts = receiptRepository.findReceiptByAmountBetween(amountMin, amountMax);
+        List<ReceiptDTO> receiptDTOs = new ArrayList<>();
+        for (Receipt receipt : receipts)
+            if (currentUser.getRole().equals("ROLE_ADMIN") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
+                receiptDTOs.add(convertToDTO(receipt));
+        return receiptDTOs;
+    }
+
     // ReceiptService.java
     @Transactional
     public void deleteReceipt(String code) throws NotFoundException
