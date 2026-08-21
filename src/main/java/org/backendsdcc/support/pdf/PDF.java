@@ -1,23 +1,32 @@
 package org.backendsdcc.support.pdf;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
+import org.backendsdcc.support.dto.ReceiptDTO;
+import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.validators.DateValidator;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class PDF
 {
     private final static String currencySymbol = "€";
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Value("${table_noOfColumns}")
     private int noOfColumns;
@@ -39,6 +48,13 @@ public class PDF
         PdfWriter.getInstance(document, baos);
         document.addTitle(documentName);
         document.addAuthor("SDCC_GEN");
+        try
+        {
+            document.addHeader("X-Receipt-Data", objectMapper.writeValueAsString(toReceiptDTO(receipt, purchases)));
+        } catch (JsonProcessingException e)
+        {
+            throw new RuntimeException("Impossibile serializzare i dati della ricevuta", e);
+        }
         document.open();
         addDocTitle(document, receipt);
         createTable(document, noOfColumns, purchases);
@@ -47,14 +63,38 @@ public class PDF
         return baos.toByteArray();
     }
 
+    private ReceiptDTO toReceiptDTO(Receipt receipt, List<Purchase> purchases)
+    {
+        ReceiptDTO dto = new ReceiptDTO();
+        dto.setCode(receipt.getCode());
+        dto.setAmount(receipt.getAmount());
+        dto.setTax(receipt.getTax());
+        dto.setDate(receipt.getDate());
+        dto.setPaymentMethod(receipt.getPaymentMethod());
+        dto.setUserEmail(receipt.getUser().getEmail());
+
+        List<ReceiptLineDTO> lines = new ArrayList<>();
+        for (Purchase p : purchases)
+        {
+            ReceiptLineDTO line = new ReceiptLineDTO();
+            line.setProductCode(p.getProduct().getCode());
+            line.setProductName(p.getProduct().getName());
+            line.setQuantity(p.getQuantity());
+            line.setPrice(p.getPrice());
+            lines.add(line);
+        }
+        dto.setLines(lines);
+        return dto;
+    }
+
 
     private void addDocTitle(Document document, Receipt receipt) throws DocumentException
     {
         Paragraph p1 = new Paragraph();
         leaveEmptyLine(p1, 1);
-        p1.add(new Paragraph("RECEIPT_CODE: " + receipt.getCode(), COURIER));
-        p1.add(new Paragraph("USER_EMAIL: " + receipt.getUser().getEmail(), COURIER));
-        p1.add(new Paragraph("DATE: " + DateValidator.parse(receipt.getDate().toString()), COURIER));
+        p1.add(new Paragraph("RECEIPT_CODE: " + receipt.getCode(), COURIER_SMALL_FOOTER));
+        p1.add(new Paragraph("USER_EMAIL: " + receipt.getUser().getEmail(), COURIER_SMALL_FOOTER));
+        p1.add(new Paragraph("DATE: " + DateValidator.format(receipt.getDate()), COURIER_SMALL_FOOTER));
         p1.setAlignment(Element.ALIGN_CENTER);
         leaveEmptyLine(p1, 2);
 
@@ -66,9 +106,9 @@ public class PDF
         Paragraph p2 = new Paragraph();
         leaveEmptyLine(p2, 1);
         p2.setAlignment(Element.ALIGN_CENTER);
-        p2.add(new Paragraph("TAX: " + currencySymbol + receipt.getTax(), COURIER_SMALL));
-        p2.add(new Paragraph("TOTAL: " + currencySymbol + receipt.getAmount(), COURIER_SMALL));
-        p2.add(new Paragraph("PAYMENT: " + receipt.getPaymentMethod(), COURIER_SMALL));
+        p2.add(new Paragraph("TAX: " + currencySymbol + receipt.getTax(), COURIER_SMALL_FOOTER));
+        p2.add(new Paragraph("TOTAL: " + currencySymbol + receipt.getAmount(), COURIER_SMALL_FOOTER));
+        p2.add(new Paragraph("PAYMENT: " + receipt.getPaymentMethod(), COURIER_SMALL_FOOTER));
         leaveEmptyLine(p2, 3);
 
         document.add(p2);

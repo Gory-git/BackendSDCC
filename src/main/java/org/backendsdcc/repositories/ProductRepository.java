@@ -44,4 +44,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>
     Optional<Product> findByCode(String code);
 
     boolean existsByCode(String code);
+
+    List<Product> findByNameLike(String name);
+
+    List<Product> findByNameContains(String name);
+
+    List<Product> findByCodeLike(String code);
+
+    List<Product> findByCodeContains(String code);
 }

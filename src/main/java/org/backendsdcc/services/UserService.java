@@ -1,24 +1,67 @@
 package org.backendsdcc.services;
 
+import org.apache.commons.text.similarity.FuzzyScore;
+import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.UserDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
+import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class UserService
 {
     @Autowired
     private UserRepository userRepository;
+
+    private JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> getAllUsers()
+    {
+        List<User> users = userRepository.findAll();
+        return users.stream().map(UserService::convertToDTO).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDTO> findByEmailLike(String email, float threshold) throws InvalidRequestException
+    {
+        if (email == null)
+            throw new InvalidRequestException("User email not valid");
+        if (threshold < 0 || threshold > 1)
+            throw new InvalidRequestException("Threshold not valid");
+        if (!getCurrentUser().getRole().equals("ROLE_ADMIN"))
+            throw new InvalidRequestException("Unhauthorized");
+
+        List<UserDTO> userDTOs = new ArrayList<>();
+        List<User> usersWithDuplicates = userRepository.findByEmailLike("%"+email+"%");
+        usersWithDuplicates.addAll(userRepository.findByEmailContains(email));
+        // fuzzy search
+        List<User> allUsers = userRepository.findAll(PageRequest.of(0, 500)).getContent();
+
+        usersWithDuplicates.addAll(allUsers.stream()
+                .filter(user -> jaroWinklerSimilarity.apply(user.getEmail(), email) > threshold)
+                .toList());
+
+        // remove duplicates
+        List<User> uniqueUsers = new ArrayList<>(new HashSet<>(usersWithDuplicates));
+        for (User user : uniqueUsers)
+            userDTOs.add(convertToDTO(user));
+        return userDTOs;
+    }
 
     @Transactional(readOnly = true)
     public UserDTO getCurrentUser() throws NotFoundException

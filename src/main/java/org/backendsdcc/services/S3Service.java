@@ -16,12 +16,15 @@ import java.util.UUID;
 public class S3Service {
 
     private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
 
-    public S3Service(S3Client s3Client) {
+
+    public S3Service(S3Client s3Client, S3Presigner s3Presigner) {
         this.s3Client = s3Client;
+        this.s3Presigner = s3Presigner;
     }
 
     public String uploadPDF(byte[] pdfBytes, String prefix) {
@@ -38,8 +41,6 @@ public class S3Service {
     }
 
     public String generatePresignedUrl(String s3Key, int minutes) {
-        S3Presigner presigner = S3Presigner.create();
-
         GetObjectRequest getRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(s3Key)
@@ -50,7 +51,7 @@ public class S3Service {
                 .getObjectRequest(getRequest)
                 .build();
 
-        return presigner.presignGetObject(presignRequest)
+        return s3Presigner.presignGetObject(presignRequest)
                 .url()
                 .toString();
     }
@@ -63,4 +64,6 @@ public class S3Service {
 
         s3Client.deleteObject(request);
     }
+
+
 }

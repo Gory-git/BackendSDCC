@@ -45,4 +45,9 @@ public class DateValidator
             );
         return FORMATTER.parse(normalized, Instant::from);
     }
+
+    public static String format(Instant instant)
+    {
+        return FORMATTER.format(instant);
+    }
 }

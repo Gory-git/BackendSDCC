@@ -1,10 +1,12 @@
 package org.backendsdcc.services;
 
+import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.ProductRepository;
+import org.backendsdcc.repositories.PurchaseRepository;
 import org.backendsdcc.repositories.ReceiptRepository;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.ProductDTO;
@@ -13,6 +15,7 @@ import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,10 @@ public class ProductService
     private ProductRepository productRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private PurchaseRepository purchaseRepository;
+
+    private final JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
 
     private static ProductDTO convertToDTO(Product product)
     {
@@ -78,7 +85,7 @@ public class ProductService
 
         Instant dateMin = date.minusSeconds(30 * 24 * 60 * 60); // 30 days ago
 
-        return getMostBoughtProductOfTimeSpan(userEmail, DateValidator.parse(dateMin.toString()), date);
+        return getMostBoughtProductOfTimeSpan(userEmail, dateMin, date);
     }
 
     @Transactional(readOnly = true)
@@ -127,6 +134,47 @@ public class ProductService
             throw new NotFoundException("No product found");
 
         return convertToDTO(mostBought);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDTO> findByNameOrCodeLike(String query, float threshold) throws InvalidRequestException
+    {
+        if (query == null || query.isBlank())
+            throw new InvalidRequestException("Query not valid");
+        if (threshold < 0 || threshold > 1)
+            throw new InvalidRequestException("Threshold not valid");
+
+        List<Product> matches = new ArrayList<>();
+        matches.addAll(productRepository.findByNameLike("%" + query + "%"));
+        matches.addAll(productRepository.findByNameContains(query));
+        matches.addAll(productRepository.findByCodeLike("%" + query + "%"));
+        matches.addAll(productRepository.findByCodeContains(query));
+
+        // fuzzy search
+        List<Product> allProducts = productRepository.findAll(PageRequest.of(0, 500)).getContent();
+        matches.addAll(allProducts.stream()
+                .filter(p -> jaroWinklerSimilarity.apply(p.getName(), query) > threshold
+                        || jaroWinklerSimilarity.apply(p.getCode(), query) > threshold)
+                .toList());
+
+        // remove duplicates
+        List<Product> uniqueProducts = new ArrayList<>(new HashSet<>(matches));
+        List<ProductDTO> result = new ArrayList<>();
+        for (Product product : uniqueProducts)
+            result.add(convertToDTO(product));
+        return result;
+    }
+
+    @Transactional
+    public void deleteProduct(String code) throws NotFoundException, ConflictException
+    {
+        Product product = productRepository.findByCode(code)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        if (!purchaseRepository.findPurchaseByProduct(product).isEmpty())
+            throw new ConflictException("Prodotto già presente in una o più ricevute: impossibile eliminarlo");
+
+        productRepository.delete(product);
     }
 
 }

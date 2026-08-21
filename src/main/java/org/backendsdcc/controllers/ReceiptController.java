@@ -10,6 +10,7 @@ import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -103,7 +104,7 @@ public class ReceiptController
         }
     }
 
-    @GetMapping("/pdf/{code}")
+    @GetMapping(value = "/pdf/{code}", produces = MediaType.TEXT_PLAIN_VALUE)
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<String> getPDFUrl(@PathVariable String code)
     {
@@ -148,6 +149,21 @@ public class ReceiptController
         } catch (InvalidRequestException e)
         {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
+        }
+    }
+
+    // ReceiptController.java
+    @DeleteMapping("/{code}")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<String> deleteReceipt(@PathVariable String code)
+    {
+        try
+        {
+            receiptService.deleteReceipt(code);
+            return ResponseEntity.ok("Ricevuta eliminata con successo");
+        } catch (NotFoundException e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Errore: " + e.getMessage());
         }
     }
 

@@ -1,8 +1,8 @@
 package org.backendsdcc.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
-import com.itextpdf.text.pdf.parser.PdfTextExtractor;
 import org.backendsdcc.models.Product;
 import org.backendsdcc.models.Purchase;
 import org.backendsdcc.models.Receipt;
@@ -41,6 +41,8 @@ public class PDFService
     private S3Service s3Service;
     @Autowired
     private UserService userService;
+    @Autowired
+    private ObjectMapper objectMapper;
 
 
     @Transactional
@@ -53,24 +55,18 @@ public class PDFService
         if (file.getSize() > MAX_SIZE_BYTES)
             throw new InvalidRequestException("File troppo grande");
 
-
-        StringBuilder pdfContent = new StringBuilder();
-        // Leggi il PDF
         PdfReader reader = new PdfReader(file.getInputStream());
 
         if (!reader.getInfo().containsKey("Author") || reader.getInfo().containsKey("Author") && !reader.getInfo().get("Author").equals("SDCC_GEN"))
             throw new InvalidRequestException("Receipt incorrectly formatted");
 
-        // Itera attraverso le pagine del PDF
-        for (int i = 1; i <= reader.getNumberOfPages(); i++)
-            pdfContent.append(PdfTextExtractor.getTextFromPage(reader, i));
-
+        String receiptDataJson = reader.getInfo().get("X-Receipt-Data");
         reader.close();
 
         ReceiptDTO receiptParsed;
         try
         {
-            receiptParsed = ReceiptPDFParser.parse(pdfContent.toString());
+            receiptParsed = ReceiptPDFParser.parse(receiptDataJson, objectMapper);
         } catch (IllegalArgumentException e)
         {
             throw new InvalidRequestException("PDF parsing error: " + e.getMessage());

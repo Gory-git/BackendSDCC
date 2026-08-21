@@ -10,8 +10,9 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long>
 {
-    @Query("SELECT U FROM User U WHERE U.email like ?1")
-    User findByEmailLike(String email);
+    List<User> findByEmailLike(String email);
+
+    List<User> findByEmailContains(String email);
 
     boolean existsByEmail(String email);
 

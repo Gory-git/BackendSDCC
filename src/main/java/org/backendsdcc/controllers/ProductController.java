@@ -65,6 +65,20 @@ public class ProductController
         }
     }
 
+    @GetMapping("/find")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<?> findProducts(@RequestParam String query, @RequestParam float threshold)
+    {
+        try
+        {
+            List<ProductDTO> products = productService.findByNameOrCodeLike(query, threshold);
+            return ResponseEntity.ok(products);
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/product-of-the-month/{userEmail}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ProductDTO> getProductOfTheMonth(@PathVariable String userEmail)
@@ -90,6 +104,24 @@ public class ProductController
         } catch (NotFoundException e)
         {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    // ProductController.java
+    @DeleteMapping("/{code}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<String> deleteProduct(@PathVariable String code)
+    {
+        try
+        {
+            productService.deleteProduct(code);
+            return ResponseEntity.ok("Prodotto eliminato con successo");
+        } catch (NotFoundException e)
+        {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Errore: " + e.getMessage());
+        } catch (ConflictException e)
+        {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Errore: " + e.getMessage());
         }
     }
 

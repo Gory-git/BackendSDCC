@@ -1,5 +1,6 @@
 package org.backendsdcc.services;
 
+import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.backendsdcc.models.*;
 import org.backendsdcc.repositories.*;
 import org.backendsdcc.support.comparators.ReceiptAmountComparator;
@@ -35,6 +36,8 @@ public class ReceiptService
     private UserRepository userRepository;
     @Autowired
     private UserService userService;
+
+    private JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
 
     @Transactional(readOnly = true)
     public ReceiptDTO getReceipt(String code) throws NotFoundException
@@ -144,6 +147,8 @@ public class ReceiptService
             throw new InvalidRequestException("Receipt date not valid");
         receipt.setDate(date);
 
+        receiptRepository.save(receipt);
+
         List<ReceiptLineDTO> lines = receiptDTO.getLines();
 
         if (lines == null || lines.isEmpty())
@@ -168,6 +173,7 @@ public class ReceiptService
                 .orElseThrow(() -> new NotFoundException("Product not found"));
             total = total.add(price.multiply(BigDecimal.valueOf(quantity)));
 
+
             if (total.compareTo(receipt.getAmount()) > 0)
                 throw new InvalidRequestException("Receipt amount not valid: items exceed total");
 
@@ -178,21 +184,21 @@ public class ReceiptService
             purchase.setProduct(product);
             purchaseRepository.save(purchase);
         }
+        total = total.add(receipt.getTax());
 
         if (total.compareTo(receipt.getAmount()) != 0)
             throw new InvalidRequestException("Receipt amount mismatch: items total does not match receipt amount");
 
-        receiptRepository.save(receipt);
     }
 
     @Transactional(readOnly = true)
     public List<ReceiptDTO> findByUserEmailLike(String email, float threshold) throws InvalidRequestException
     {
-        if (email == null || !userRepository.existsByEmail(email))
+        if (email == null)
             throw new InvalidRequestException("User email not valid");
         if (threshold < 0 || threshold > 1)
             throw new InvalidRequestException("Threshold not valid");
-        if (!userService.getCurrentUser().getRole().equals("ROLE_ADMIN") && !userService.getCurrentUser().getEmail().equals(email))
+        if (!userService.getCurrentUser().getRole().equals("ROLE_ADMIN"))
             throw new InvalidRequestException("Unhauthorized");
 
         List<ReceiptDTO> receiptDTOs = new ArrayList<>();
@@ -200,10 +206,9 @@ public class ReceiptService
         receiptsWithDuplicates.addAll(receiptRepository.findByUserEmailContains(email));
         // fuzzy search
         List<Receipt> allReceipts = receiptRepository.findAll(PageRequest.of(0, 500)).getContent();
-        FuzzyScore fuzzyScore = new FuzzyScore(Locale.ITALIAN);
 
         receiptsWithDuplicates.addAll(allReceipts.stream()
-                .filter(receipt -> fuzzyScore.fuzzyScore(receipt.getUser().getEmail(), email) > threshold)
+                .filter(receipt -> jaroWinklerSimilarity.apply(receipt.getUser().getEmail(), email) > threshold)
                 .toList());
 
         // remove duplicates
@@ -230,10 +235,10 @@ public class ReceiptService
 
         // fuzzy search
         List<Receipt> allReceipts = receiptRepository.findAll(PageRequest.of(0, 500)).getContent();
-        FuzzyScore fuzzyScore = new FuzzyScore(Locale.ITALIAN);
+        JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
 
         receiptsWithDuplicates.addAll(allReceipts.stream()
-                .filter(receipt -> fuzzyScore.fuzzyScore(receipt.getCode(), code) > threshold)
+                .filter(receipt -> jaroWinklerSimilarity.apply(receipt.getCode(), code) > threshold)
                 .toList());
 
         // remove duplicates
@@ -242,6 +247,21 @@ public class ReceiptService
             if (currentUser.getRole().equals("ROLE_ADMIN") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
                 receiptDTOs.add(convertToDTO(receipt));
         return receiptDTOs;
+    }
+
+    // ReceiptService.java
+    @Transactional
+    public void deleteReceipt(String code) throws NotFoundException
+    {
+        UserDTO currentUser = userService.getCurrentUser();
+        Receipt receipt = receiptRepository.findReceiptByCode(code)
+                .orElseThrow(() -> new NotFoundException("Receipt not found"));
+
+        if (!receipt.getUser().getEmail().equals(currentUser.getEmail()) && !currentUser.getRole().equals("ROLE_ADMIN"))
+            throw new NotFoundException("Receipt not found"); // stesso pattern di getReceipt: non rivelo che esiste
+
+        purchaseRepository.deleteAll(purchaseRepository.findByReceipt(receipt));
+        receiptRepository.delete(receipt);
     }
 
     // TODO statistiche e query AI
