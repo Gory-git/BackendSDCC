@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping(value = "/product")
 @CrossOrigin(
-        origins = "http://localhost:4200",
+        origins = "http://localhost:5173",
         allowedHeaders = "*",
         methods = { RequestMethod.GET, RequestMethod.POST }
 )
@@ -27,7 +27,7 @@ public class ProductController
     private ProductService productService;
 
     @GetMapping("/all")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<List<ProductDTO>> getAllProducts()
     {
         List<ProductDTO> products = productService.getAllProducts();
@@ -35,7 +35,7 @@ public class ProductController
     }
 
     @PostMapping("/add")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> addProduct(@RequestBody ProductDTO productDTO)
     {
         try
@@ -52,7 +52,7 @@ public class ProductController
     }
 
     @GetMapping("/{code}")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<ProductDTO> getProductByCode(@PathVariable String code)
     {
         try
@@ -66,7 +66,7 @@ public class ProductController
     }
 
     @GetMapping("/product-of-the-month/{userEmail}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ProductDTO> getProductOfTheMonth(@PathVariable String userEmail)
     {
         try
@@ -80,7 +80,7 @@ public class ProductController
     }
 
     @GetMapping("/product-of-time-span/{userEmail}/{dateMin}/{dateMax}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ProductDTO> getProductOfTimeSpan(@PathVariable String userEmail, @PathVariable Instant dateMin, @PathVariable Instant dateMax)
     {
         try

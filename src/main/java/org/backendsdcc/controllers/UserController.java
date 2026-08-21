@@ -1,7 +1,9 @@
 package org.backendsdcc.controllers;
 
+import jakarta.validation.Valid;
 import org.backendsdcc.services.ProductService;
 import org.backendsdcc.services.UserService;
+import org.backendsdcc.support.dto.UserDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.messages.ResponseMessage;
@@ -16,7 +18,7 @@ import java.time.Instant;
 @RestController
 @RequestMapping(value = "/user")
 @CrossOrigin(
-        origins = "http://localhost:4200",
+        origins = "http://localhost:5173",
         allowedHeaders = "*",
         methods = { RequestMethod.GET, RequestMethod.POST }
 )
@@ -28,13 +30,13 @@ public class UserController
     private ProductService productService;
 
     @PostMapping("/register")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
-    public ResponseEntity registerUser()
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity registerUser(@RequestBody @Valid UserDTO userDTO)
     {
         try
         {
-            userService.createUser();
-            return new ResponseEntity<>(HttpStatus.OK);
+            userService.createUser(userDTO);
+            return new ResponseEntity<>(new ResponseMessage("User created successfully."), HttpStatus.CREATED);
         } catch (ConflictException e)
         {
             return new ResponseEntity<>(new ResponseMessage("User already exists"), HttpStatus.CONFLICT);
@@ -42,7 +44,7 @@ public class UserController
     }
 
     @GetMapping("/page")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity userInfo()
     {
         try
@@ -55,7 +57,7 @@ public class UserController
     }
 
     @GetMapping("/product-of-the-month")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity getProductOfTheMonth()
     {
         try
@@ -67,9 +69,10 @@ public class UserController
         }
     }
 
-    @GetMapping("/product-of-time-span/{dateMin}/{dateMax}")
-    @PreAuthorize("hasAnyRole('ROLE_USER','ROLE_ADMIN')")
-    public ResponseEntity getProductOfTimeSpan(@PathVariable Instant dateMin, @PathVariable Instant dateMax)
+    @GetMapping("/product-of-time-span")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity getProductOfTimeSpan(@RequestParam Instant dateMin, @RequestParam Instant dateMax)
+
     {
         try
         {

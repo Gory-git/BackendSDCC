@@ -12,6 +12,6 @@ public class UserDTO
     private String surname;
     private String email;
     private String phone;
-    private Instant birthDate;
     private String role;
+    private String firebaseUid;
 }

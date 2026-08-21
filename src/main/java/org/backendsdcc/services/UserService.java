@@ -30,34 +30,29 @@ public class UserService
     }
 
     @Transactional
-    public UserDTO ensureLocalUserExists(Jwt jwt) throws ConflictException
+    public UserDTO createUser(UserDTO userDTO) throws ConflictException
     {
+        Jwt jwt = getCurrentJwt();
+
         String firebaseUid = jwt.getSubject();
         String email = jwt.getClaimAsString("email");
-        
+
         if (userRepository.findByFirebaseUid(firebaseUid).isPresent())
-            return convertToDTO(userRepository.findByFirebaseUid(firebaseUid).get());
-        
+            throw new ConflictException("User with this Firebase UID already exists");
+
         if (userRepository.existsByEmail(email))
             throw new ConflictException("User with this email already exists");
-        
+
         User u = new User();
         u.setEmail(email);
-        u.setName(jwt.getClaimAsString("given_name"));
-        u.setSurname(jwt.getClaimAsString("family_name"));
-        u.setPhone(jwt.getClaimAsString("phone_number"));
+        u.setName(userDTO.getName());
+        u.setSurname(userDTO.getSurname());
+        u.setPhone(userDTO.getPhone());
         u.setRole(determineRoleFromClaims(jwt));
         u.setCreatedAt(java.time.Instant.now());
         u.setUpdatedAt(java.time.Instant.now());
         u.setFirebaseUid(firebaseUid);
         return convertToDTO(userRepository.save(u));
-    }
-
-    @Transactional
-    public UserDTO createUser() throws ConflictException
-    {
-        Jwt jwt = getCurrentJwt();
-        return ensureLocalUserExists(jwt);
     }
 
     private static UserDTO convertToDTO(User user)
@@ -67,7 +62,6 @@ public class UserService
         dto.setSurname(user.getSurname());
         dto.setEmail(user.getEmail());
         dto.setPhone(user.getPhone());
-        dto.setBirthDate(user.getBirthDate());
         dto.setRole(user.getRole());
         return dto;
     }

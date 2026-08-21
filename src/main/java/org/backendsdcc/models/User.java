@@ -32,9 +32,6 @@ public class User
     @Column(name = "phone", unique = true, length = 20)
     private String phone;
 
-    @Column(name = "birth_date")
-    private Instant birthDate;
-
     @Column(name = "role",  nullable = false)
     private String role;
 
