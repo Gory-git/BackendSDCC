@@ -87,12 +87,22 @@ public class ReceiptService
     public List<ReceiptDTO> getAllReceiptsOrdered(boolean date) throws NotFoundException
     {
         UserDTO currentUser = userService.getCurrentUser();
-        User user = userRepository.findByEmail(currentUser.getEmail())
-                .orElseThrow(() -> new NotFoundException("User not found"));
 
-        List<Receipt> receipts = receiptRepository.findByUserWithPurchases(user);
+        List<Receipt> receipts;
+        if (currentUser.getRole().equals("ROLE_ADMIN"))
+        {
+            receipts = receiptRepository.findAllWithPurchases();
+        }
+        else
+        {
+            User user = userRepository.findByEmail(currentUser.getEmail())
+                    .orElseThrow(() -> new NotFoundException("User not found"));
+            receipts = receiptRepository.findByUserWithPurchases(user);
+        }
+
+
         if (receipts == null || receipts.isEmpty())
-            throw new NotFoundException("No receipt found");
+            return new ArrayList<>();
 
         if (date)   // SORT BY DATE
             receipts.sort(new ReceiptDateComparator());

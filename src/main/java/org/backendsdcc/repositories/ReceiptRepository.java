@@ -21,6 +21,11 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
             "WHERE r.user = :user")
     List<Receipt> findByUserWithPurchases(@Param("user") User user);
 
+    @Query("SELECT DISTINCT r FROM Receipt r " +
+            "LEFT JOIN FETCH r.purchases p " +
+            "LEFT JOIN FETCH p.product")
+    List<Receipt> findAllWithPurchases();
+
     boolean existsByCode(String code);
 
     Optional<Receipt> findReceiptByCode(String code);

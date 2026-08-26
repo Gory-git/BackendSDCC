@@ -4,7 +4,9 @@ import jakarta.validation.Valid;
 import org.backendsdcc.services.ProductService;
 import org.backendsdcc.services.UserService;
 import org.backendsdcc.support.dto.UserDTO;
+import org.backendsdcc.support.dto.UserUpdateDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
+import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
 import org.backendsdcc.support.messages.ResponseMessage;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +22,7 @@ import java.time.Instant;
 @CrossOrigin(
         origins = "http://localhost:5173",
         allowedHeaders = "*",
-        methods = { RequestMethod.GET, RequestMethod.POST }
+        methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT }
 )
 public class UserController
 {
@@ -40,7 +42,17 @@ public class UserController
         } catch (ConflictException e)
         {
             return new ResponseEntity<>(new ResponseMessage("User already exists"), HttpStatus.CONFLICT);
+        } catch (InvalidRequestException e)
+        {
+            return new ResponseEntity<>(new ResponseMessage(e.getMessage()), HttpStatus.BAD_REQUEST);
         }
+    }
+
+    @PutMapping("/update")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity updateUser(@RequestBody @Valid UserUpdateDTO userUpdateDTO)
+    {
+        return new ResponseEntity<>(userService.updateCurrentUser(userUpdateDTO), HttpStatus.OK);
     }
 
     @GetMapping("/page")

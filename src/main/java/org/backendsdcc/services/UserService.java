@@ -5,6 +5,7 @@ import org.apache.commons.text.similarity.JaroWinklerSimilarity;
 import org.backendsdcc.models.User;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.UserDTO;
+import org.backendsdcc.support.dto.UserUpdateDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
@@ -69,14 +70,59 @@ public class UserService
     @Transactional(readOnly = true)
     public UserDTO getCurrentUser() throws NotFoundException
     {
-        Jwt jwt = getCurrentJwt();
-        String sub = jwt.getSubject();
-        User user = userRepository.findByFirebaseUid(sub).orElseThrow(() -> new NotFoundException("User not found"));
-        return convertToDTO(user);
+        return convertToDTO(getCurrentUserEntity());
     }
 
     @Transactional
-    public UserDTO createUser(UserDTO userDTO) throws ConflictException
+    public UserDTO updateCurrentUser(UserUpdateDTO userUpdateDTO) throws NotFoundException, ConflictException, InvalidRequestException
+    {
+        User user = getCurrentUserEntity();
+
+        String name = trimToNull(userUpdateDTO.getName());
+        String surname = trimToNull(userUpdateDTO.getSurname());
+        if (name == null || surname == null)
+            throw new InvalidRequestException("Name and surname are required");
+
+        // Stringa vuota normalizzata a null: telefono e codice fiscale sono colonne
+        // unique, due utenti che "svuotano" il campo salvando "" violerebbero il vincolo.
+        String phone = trimToNull(userUpdateDTO.getPhone());
+        String codiceFiscale = trimToNull(userUpdateDTO.getCodiceFiscale());
+        if (codiceFiscale != null)
+            codiceFiscale = codiceFiscale.toUpperCase(Locale.ROOT);
+
+        // Il controllo di unicità scatta solo se il valore è cambiato: così non serve
+        // escludere sé stessi dalla query.
+        if (phone != null && !phone.equals(user.getPhone()) && userRepository.existsByPhone(phone))
+            throw new ConflictException("Phone already in use");
+        if (codiceFiscale != null && !codiceFiscale.equals(user.getCodiceFiscale()) && userRepository.existsByCodiceFiscale(codiceFiscale))
+            throw new ConflictException("Codice fiscale already in use");
+
+        user.setName(name);
+        user.setSurname(surname);
+        user.setPhone(phone);
+        user.setCodiceFiscale(codiceFiscale);
+        // Scritto a mano come in createUser: l'entità ha @LastModifiedDate ma non
+        // @EntityListeners(AuditingEntityListener.class), quindi l'auditing non scatta.
+        user.setUpdatedAt(java.time.Instant.now());
+
+        return convertToDTO(userRepository.save(user));
+    }
+
+    private User getCurrentUserEntity() throws NotFoundException
+    {
+        String sub = getCurrentJwt().getSubject();
+        return userRepository.findByFirebaseUid(sub).orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private static String trimToNull(String value)
+    {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Transactional
+    public UserDTO createUser(UserDTO userDTO) throws ConflictException, InvalidRequestException
     {
         Jwt jwt = getCurrentJwt();
 
@@ -89,12 +135,28 @@ public class UserService
         if (userRepository.existsByEmail(email))
             throw new ConflictException("User with this email already exists");
 
+        String name = trimToNull(userDTO.getName());
+        String surname = trimToNull(userDTO.getSurname());
+        if (name == null || surname == null)
+            throw new InvalidRequestException("Name and surname are required");
+
+        String phone = trimToNull(userDTO.getPhone());
+        String codiceFiscale = trimToNull(userDTO.getCodiceFiscale());
+        if (codiceFiscale != null)
+            codiceFiscale = codiceFiscale.toUpperCase(Locale.ROOT);
+
+        if (phone != null && userRepository.existsByPhone(phone))
+            throw new ConflictException("User with this phone already exists");
+
+        if (codiceFiscale != null && userRepository.existsByCodiceFiscale(codiceFiscale))
+            throw new ConflictException("User with this codice fiscale already exists");
+
         User u = new User();
         u.setEmail(email);
-        u.setName(userDTO.getName());
-        u.setSurname(userDTO.getSurname());
-        u.setPhone(userDTO.getPhone());
-        u.setCodiceFiscale(userDTO.getCodiceFiscale());
+        u.setName(name);
+        u.setSurname(surname);
+        u.setPhone(phone);
+        u.setCodiceFiscale(codiceFiscale);
         u.setRole(determineRoleFromClaims(jwt));
         u.setCreatedAt(java.time.Instant.now());
         u.setUpdatedAt(java.time.Instant.now());

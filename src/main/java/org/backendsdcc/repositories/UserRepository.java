@@ -25,6 +25,10 @@ public interface UserRepository extends JpaRepository<User, Long>
 
     boolean existsByEmailIgnoreCase(String email);
 
+    boolean existsByPhone(String phone);
+
+    boolean existsByCodiceFiscale(String codiceFiscale);
+
     @Query("SELECT u FROM User u WHERE " +
             "u.email LIKE %:term% OR " +
             "u.name LIKE %:term% OR " +
