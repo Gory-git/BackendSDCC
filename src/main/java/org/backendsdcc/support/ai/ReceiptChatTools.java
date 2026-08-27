@@ -141,8 +141,21 @@ public class ReceiptChatTools
 
     // Prodotti ────────────────────────────────────────────────────────────────
 
+    @Tool(description = "Elenca tutti i prodotti a catalogo. Usalo per domande sul catalogo nel suo "
+            + "insieme ('quanti prodotti ci sono', 'che prodotti vendete'), dove non c'e' niente da cercare. "
+            + "Il catalogo e' visibile a tutti.")
+    public String elencaProdotti()
+    {
+        return esegui("elencaProdotti", () ->
+        {
+            List<ProductDTO> prodotti = productService.getAllProducts();
+            return righe(prodotti, p -> p.getCode() + " | " + p.getName());
+        });
+    }
+
     @Tool(description = "Cerca prodotti a catalogo per nome o codice. La ricerca tollera errori di "
-            + "battitura. Serve per trovare il codice di un prodotto di cui l'utente conosce solo il nome.")
+            + "battitura. Serve per trovare il codice di un prodotto di cui l'utente conosce solo il nome. "
+            + "Per avere tutto il catalogo usa elencaProdotti, non una ricerca vuota.")
     public String cercaProdotti(
             @ToolParam(description = "Nome o codice, anche parziale, del prodotto") String query)
     {
