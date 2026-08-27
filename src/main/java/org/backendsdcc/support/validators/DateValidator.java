@@ -24,6 +24,16 @@ public class DateValidator
 
     private DateValidator() {}
 
+    /**
+     * La data piu' vecchia accettata dall'applicazione. Serve al chatbot, che
+     * deve poter limitare da solo un intervallo troppo ampio ("tutte le mie
+     * ricevute") invece di farsi rifiutare la richiesta da isValid.
+     */
+    public static Instant minInstant()
+    {
+        return MIN_INSTANT;
+    }
+
     public static boolean isValid(String date)
     {
         if (date == null || date.isBlank())

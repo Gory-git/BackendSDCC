@@ -48,6 +48,11 @@ dependencies {
     implementation 'software.amazon.awssdk:s3'
     implementation 'software.amazon.awssdk:s3-transfer-manager'
     implementation 'com.google.firebase:firebase-admin:9.3.0'
+
+    // Chatbot: Spring AI 1.1.x e' la linea allineata a Spring Boot 3.5 (la 2.0
+    // richiede Boot 4). Il BOM allinea le versioni degli starter fra loro.
+    implementation platform('org.springframework.ai:spring-ai-bom:1.1.8')
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
 }
 
 tasks.named('test') {

@@ -15,6 +15,7 @@ import org.backendsdcc.support.dto.UserStatDTO;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,10 @@ import java.util.*;
 @Service
 public class StatsService
 {
+    // Le statistiche sono dati aggregati di tutti i clienti: il controllo di
+    // ruolo sta qui e non solo su StatsController, altrimenti ogni nuovo punto
+    // d'ingresso che non passa dal controller (i tool del chatbot sono stati il
+    // primo) legge il fatturato senza che nessuno gliel'abbia permesso.
     @Autowired
     private ReceiptRepository receiptRepository;
     @Autowired
@@ -43,6 +48,7 @@ public class StatsService
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<RevenuePointDTO> getRevenueOverTime(Instant dateMin, Instant dateMax) throws InvalidRequestException
     {
         validateRange(dateMin, dateMax);
@@ -60,6 +66,7 @@ public class StatsService
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<ProductStatDTO> getTopProducts(Instant dateMin, Instant dateMax, int limit) throws InvalidRequestException
     {
         validateRange(dateMin, dateMax);
@@ -95,6 +102,7 @@ public class StatsService
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<PaymentMethodStatDTO> getPaymentMethodBreakdown(Instant dateMin, Instant dateMax) throws InvalidRequestException
     {
         validateRange(dateMin, dateMax);
@@ -119,6 +127,7 @@ public class StatsService
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserStatDTO> getTopUsers(Instant dateMin, Instant dateMax, int limit) throws InvalidRequestException
     {
         validateRange(dateMin, dateMax);
@@ -152,6 +161,7 @@ public class StatsService
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public SummaryStatsDTO getSummary(Instant dateMin, Instant dateMax) throws InvalidRequestException
     {
         validateRange(dateMin, dateMax);

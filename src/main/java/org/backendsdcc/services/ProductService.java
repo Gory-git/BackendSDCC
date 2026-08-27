@@ -10,6 +10,7 @@ import org.backendsdcc.repositories.PurchaseRepository;
 import org.backendsdcc.repositories.ReceiptRepository;
 import org.backendsdcc.repositories.UserRepository;
 import org.backendsdcc.support.dto.ProductDTO;
+import org.backendsdcc.support.dto.UserDTO;
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
 import org.backendsdcc.support.exceptions.NotFoundException;
@@ -33,6 +34,8 @@ public class ProductService
     private UserRepository userRepository;
     @Autowired
     private PurchaseRepository purchaseRepository;
+    @Autowired
+    private UserService userService;
 
     private final JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
 
@@ -99,6 +102,18 @@ public class ProductService
             throw new InvalidRequestException("Invalid date range given");
         if (userEmail == null || userEmail.isBlank())
             throw new InvalidRequestException("Invalid user");
+
+        // Gli acquisti di una persona li vede quella persona e un amministratore.
+        // Il controllo sta qui e non su ProductController perche' questo metodo
+        // ha tre chiamanti diversi (ProductController, UserController e i tool
+        // del chatbot) e non tutti passano da una regola /admin/**. Nota che
+        // deve restare codice normale e non un @PreAuthorize: getMostBoughtProductOfTheMonth
+        // chiama questo metodo dall'interno della stessa classe, e le annotazioni
+        // di Spring non scattano sulle chiamate che non passano dal proxy.
+        UserDTO currentUser = userService.getCurrentUser();
+        if (!userEmail.equalsIgnoreCase(currentUser.getEmail()) && !"ROLE_ADMIN".equals(currentUser.getRole()))
+            throw new InvalidRequestException("Unauthorized");
+
         User user = userRepository.findByEmail(userEmail)
             .orElseThrow(() -> new NotFoundException("User not found"));;
 

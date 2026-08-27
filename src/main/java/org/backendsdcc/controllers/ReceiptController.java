@@ -176,5 +176,6 @@ public class ReceiptController
         }
     }
 
-    // TODO statistiche e query AI
+    // Le statistiche stanno in StatsController, le query in linguaggio
+    // naturale in ChatController.
 }

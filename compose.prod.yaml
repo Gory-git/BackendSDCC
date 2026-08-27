@@ -43,6 +43,10 @@ services:
       AWS_S3_REGION: ${AWS_S3_REGION:-eu-north-1}
       # Nessuna credenziale AWS: su EC2 le prende dal ruolo IAM dell'istanza.
       # In locale, per provare S3, si montano ~/.aws in sola lettura (vedi README).
+      # Chiave del chatbot: se manca, il backend parte lo stesso e /chat risponde
+      # 503. Va aggiunta al .env sull'istanza, accanto a POSTGRES_PASSWORD.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-missing}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
     expose:
       - "8080"
     depends_on:
