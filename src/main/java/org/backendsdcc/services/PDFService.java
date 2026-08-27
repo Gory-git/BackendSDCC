@@ -109,7 +109,12 @@ public class PDFService
         }
     }
 
-    @Transactional(readOnly = true)
+    // NON readOnly: questo metodo delega a generateAndAttachPDF, che scrive s3_key.
+    // Essendo una chiamata interna alla stessa classe, il proxy di Spring non passa
+    // dal @Transactional del metodo chiamato: vale quello esterno. Con readOnly=true
+    // Hibernate mette il flush in manuale e la scrittura veniva scartata in silenzio,
+    // lasciando s3_key a NULL su ogni ricevuta senza mai segnalare un errore.
+    @Transactional
     public String getPDFUrlFromReceiptCode(String code) throws DocumentException, NotFoundException, InvalidRequestException
     {
         if (code == null || code.isBlank())
@@ -129,10 +134,16 @@ public class PDFService
 
         byte[] pdfBytes = pdfGenerator.generatePDF(receipt, purchaseRepository.findByReceipt(receipt));
 
-        String s3Key = s3Service.uploadPDF(pdfBytes, "receipts");
+        // Se la ricevuta ha già un PDF si sovrascrive quello: generare ogni volta
+        // una chiave nuova lasciava nel bucket un oggetto orfano a ogni download.
+        String s3Key = receipt.getS3Key() != null && !receipt.getS3Key().isBlank()
+                ? receipt.getS3Key()
+                : S3Service.newKey("receipts");
+
+        s3Service.uploadPDF(pdfBytes, s3Key);
 
         receipt.setS3Key(s3Key);
         receiptRepository.save(receipt);
-        return s3Service.generatePresignedUrl(s3Key, 15);
+        return s3Service.generatePresignedUrl(s3Key, 15, receipt.getCode());
     }
 }

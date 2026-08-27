@@ -1,0 +1,72 @@
+# Stack di produzione. Le immagini non si costruiscono qui: le producono i due
+# repository (in locale con `docker build`, su AWS con GitHub Actions che le
+# pubblica su ECR). Così lo stesso file vale sul portatile e sull'istanza,
+# cambiano solo i tag.
+name: receipthub
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-receipthub-frontend:local}
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+    expose:
+      - "3000"
+
+  backend:
+    image: ${BACKEND_IMAGE:-receipthub-backend:local}
+    restart: unless-stopped
+    environment:
+      SERVER_CONTEXT_PATH: /api
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-backendsdcc_dev}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sdcc}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?serve POSTGRES_PASSWORD nel file .env}
+      APP_CORS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-sdcc-a2df9}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-backendsdcc-dev-files-001-094028239135-eu-north-1-an}
+      AWS_S3_REGION: ${AWS_S3_REGION:-eu-north-1}
+      # Nessuna credenziale AWS: su EC2 le prende dal ruolo IAM dell'istanza.
+      # In locale, per provare S3, si montano ~/.aws in sola lettura (vedi README).
+    expose:
+      - "8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-backendsdcc_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-sdcc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?serve POSTGRES_PASSWORD nel file .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Il backend parte solo quando Postgres accetta connessioni: senza questo
+      # Hibernate fallisce all'avvio e il container entra in loop di restart.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sdcc} -d ${POSTGRES_DB:-backendsdcc_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

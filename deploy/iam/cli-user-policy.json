@@ -1,0 +1,42 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "VedereIstanzeCostiEStatoSSM",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "ce:GetCostAndUsage",
+        "ssm:DescribeInstanceInformation",
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AccendereESpegnereSoloLIstanzaDelProgetto",
+      "Effect": "Allow",
+      "Action": ["ec2:StartInstances", "ec2:StopInstances"],
+      "Resource": "arn:aws:ec2:eu-north-1:094028239135:instance/*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/Project": "ReceiptHub" }
+      }
+    },
+    {
+      "Sid": "ComandiManualiSoloSullIstanzaDelProgetto",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": "arn:aws:ec2:eu-north-1:094028239135:instance/*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/Project": "ReceiptHub" }
+      }
+    },
+    {
+      "Sid": "DocumentoUsatoDaSendCommand",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": "arn:aws:ssm:eu-north-1::document/AWS-RunShellScript"
+    }
+  ]
+}

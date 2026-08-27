@@ -1,0 +1,16 @@
+# In locale SITE_ADDRESS non è impostata e vale ":80": HTTP semplice.
+# In produzione si passa il dominio (es. receipthub.duckdns.org) e Caddy
+# richiede e rinnova il certificato Let's Encrypt da solo.
+{$SITE_ADDRESS::80} {
+	encode gzip
+
+	# L'API sotto /api, il resto al frontend: stessa origine, quindi in
+	# produzione il browser non fa nemmeno una preflight CORS.
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

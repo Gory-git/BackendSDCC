@@ -1,0 +1,12 @@
+# Override per il solo uso locale:
+#   docker compose -f compose.prod.yaml -f compose.local.yaml up -d
+#
+# Monta le credenziali AWS del PC dentro il container, in sola lettura, così il
+# backend può parlare con S3 anche fuori da EC2. In produzione questo file non
+# si usa: lì le credenziali arrivano dal ruolo IAM dell'istanza.
+services:
+  backend:
+    volumes:
+      - ${USERPROFILE:-${HOME}}/.aws:/home/spring/.aws:ro
+    environment:
+      AWS_REGION: ${AWS_S3_REGION:-eu-north-1}

@@ -19,11 +19,6 @@ import java.time.Instant;
 
 @RestController
 @RequestMapping(value = "/user")
-@CrossOrigin(
-        origins = "http://localhost:5173",
-        allowedHeaders = "*",
-        methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT }
-)
 public class UserController
 {
     @Autowired

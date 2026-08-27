@@ -16,11 +16,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping(value = "/product")
-@CrossOrigin(
-        origins = "http://localhost:5173",
-        allowedHeaders = "*",
-        methods = { RequestMethod.GET, RequestMethod.POST }
-)
 public class ProductController
 {
     @Autowired

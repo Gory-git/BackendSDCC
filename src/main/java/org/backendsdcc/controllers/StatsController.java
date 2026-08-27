@@ -12,11 +12,6 @@ import java.time.Instant;
 
 @RestController
 @RequestMapping(value = "/admin/stats")
-@CrossOrigin(
-        origins = "http://localhost:5173",
-        allowedHeaders = "*",
-        methods = { RequestMethod.GET }
-)
 public class StatsController
 {
     @Autowired

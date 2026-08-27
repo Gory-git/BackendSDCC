@@ -1,0 +1,9 @@
+build/
+.gradle/
+.idea/
+.git/
+.claude/
+bin/
+out/
+*.iml
+src/main/resources/.env

@@ -36,3 +36,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Segreti ###
+# La riga '!**/src/main/resources/' qui sopra ri-include le risorse, quindi un
+# .env dentro resources sarebbe tracciabile: va escluso esplicitamente.
+.env
+*.env

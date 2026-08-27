@@ -14,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.commons.text.similarity.FuzzyScore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.backendsdcc.support.exceptions.ConflictException;
 import org.backendsdcc.support.exceptions.InvalidRequestException;
@@ -36,6 +38,10 @@ public class ReceiptService
     private UserRepository userRepository;
     @Autowired
     private UserService userService;
+    @Autowired
+    private S3Service s3Service;
+
+    private static final Logger log = LoggerFactory.getLogger(ReceiptService.class);
 
     private JaroWinklerSimilarity jaroWinklerSimilarity = new JaroWinklerSimilarity();
 
@@ -292,6 +298,23 @@ public class ReceiptService
             throw new NotFoundException("Receipt not found"); // stesso pattern di getReceipt: non rivelo che esiste
 
         purchaseRepository.deleteAll(purchaseRepository.findByReceipt(receipt));
+
+        // Il PDF su S3 sopravviveva alla ricevuta. Un errore qui non deve però
+        // impedire la cancellazione: un file orfano nel bucket è meno grave di
+        // una ricevuta che l'utente non riesce a eliminare.
+        String s3Key = receipt.getS3Key();
+        if (s3Key != null && !s3Key.isBlank())
+        {
+            try
+            {
+                s3Service.deletePDF(s3Key);
+            } catch (RuntimeException e)
+            {
+                log.warn("PDF non eliminato da S3 per la ricevuta {} (chiave {}): {}",
+                        receipt.getCode(), s3Key, e.getMessage());
+            }
+        }
+
         receiptRepository.delete(receipt);
     }
 

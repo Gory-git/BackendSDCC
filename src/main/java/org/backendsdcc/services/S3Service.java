@@ -27,9 +27,17 @@ public class S3Service {
         this.s3Presigner = s3Presigner;
     }
 
-    public String uploadPDF(byte[] pdfBytes, String prefix) {
-        String key = prefix + "/" + UUID.randomUUID() + ".pdf";
+    /** Chiave nuova per un PDF che non ne ha ancora una. */
+    public static String newKey(String prefix) {
+        return prefix + "/" + UUID.randomUUID() + ".pdf";
+    }
 
+    /**
+     * Carica il PDF sulla chiave indicata. Passando la chiave già associata alla
+     * ricevuta si sovrascrive l'oggetto esistente invece di lasciarne uno orfano
+     * nel bucket a ogni download.
+     */
+    public String uploadPDF(byte[] pdfBytes, String key) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
@@ -40,10 +48,17 @@ public class S3Service {
         return key;
     }
 
-    public String generatePresignedUrl(String s3Key, int minutes) {
+    /**
+     * L'URL porta con sé il nome con cui il browser salverà il file: la chiave S3
+     * resta un UUID (nessuna collisione, nessun carattere da sanificare in un
+     * identificatore di oggetto), ma chi scarica vede il codice della ricevuta.
+     */
+    public String generatePresignedUrl(String s3Key, int minutes, String downloadFileName) {
         GetObjectRequest getRequest = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(s3Key)
+                .responseContentDisposition(
+                        "attachment; filename=\"" + safeFileName(downloadFileName) + ".pdf\"")
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
@@ -54,6 +69,17 @@ public class S3Service {
         return s3Presigner.presignGetObject(presignRequest)
                 .url()
                 .toString();
+    }
+
+    /**
+     * Il codice della ricevuta finisce in un header HTTP: tutto ciò che non è
+     * alfanumerico, punto, trattino o underscore viene sostituito, per non
+     * lasciare che un codice scritto dall'utente inietti roba nel Content-Disposition.
+     */
+    private static String safeFileName(String value) {
+        if (value == null || value.isBlank()) return "ricevuta";
+        String cleaned = value.trim().replaceAll("[^A-Za-z0-9._-]", "_");
+        return cleaned.isEmpty() ? "ricevuta" : cleaned;
     }
 
     public void deletePDF(String s3Key) {
