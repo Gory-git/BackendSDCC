@@ -8,6 +8,7 @@ import org.backendsdcc.support.comparators.ReceiptDateComparator;
 import org.backendsdcc.support.dto.ReceiptDTO;
 import org.backendsdcc.support.dto.ReceiptLineDTO;
 import org.backendsdcc.support.dto.UserDTO;
+import org.backendsdcc.support.validators.CardValidator;
 import org.backendsdcc.support.validators.DateValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -67,6 +68,7 @@ public class ReceiptService
         receiptDTO.setDate(receipt.getDate());
         receiptDTO.setPaymentMethod(receipt.getPaymentMethod());
         receiptDTO.setUserEmail(receipt.getUser().getEmail());
+        receiptDTO.setCardLast4(receipt.getCardLast4());
 
         List<ReceiptLineDTO> lines = getReceiptLineDTOS(receipt);
         receiptDTO.setLines(lines);
@@ -157,6 +159,21 @@ public class ReceiptService
         if (receiptDTO.getPaymentMethod() == null)
             throw new InvalidRequestException("Receipt payment method not valid");
         receipt.setPaymentMethod(receiptDTO.getPaymentMethod());
+
+        // La carta si accetta solo dove ha senso: "contante" con un numero di
+        // carta allegato e' un dato sbagliato, e va detto a chi lo inserisce
+        // invece di essere scartato in silenzio. Resta facoltativa, perche' le
+        // ricevute inserite prima di questo campo non ce l'hanno.
+        String carta = receiptDTO.getCardLast4();
+        if (carta != null && !carta.isBlank() && !CardValidator.richiedeCarta(receipt.getPaymentMethod()))
+            throw new InvalidRequestException("Card details given for a payment method that does not use a card");
+        try
+        {
+            receipt.setCardLast4(CardValidator.toLast4(carta));
+        } catch (IllegalArgumentException e)
+        {
+            throw new InvalidRequestException(e.getMessage());
+        }
 
         Instant date = receiptDTO.getDate();
         if (!DateValidator.isValid(date))
@@ -287,6 +304,40 @@ public class ReceiptService
     }
 
     // ReceiptService.java
+    /**
+     * Cerca le ricevute pagate con una certa carta. Chi cerca puo' digitare il
+     * numero completo: viene ridotto alle ultime quattro cifre prima di toccare
+     * il database.
+     *
+     * A differenza di ogni altra ricerca del progetto qui il confronto e'
+     * ESATTO, non fuzzy. Su un numero di carta la somiglianza restituirebbe le
+     * carte di altre persone: e' l'unico campo dove un match approssimato non e'
+     * una comodita' ma un difetto.
+     */
+    @Transactional(readOnly = true)
+    public List<ReceiptDTO> findByCardLast4(String card) throws InvalidRequestException
+    {
+        String last4;
+        try
+        {
+            last4 = CardValidator.toLast4(card);
+        } catch (IllegalArgumentException e)
+        {
+            throw new InvalidRequestException(e.getMessage());
+        }
+        if (last4 == null)
+            throw new InvalidRequestException("Card number not valid");
+
+        User currentUser = userRepository.findByEmail(userService.getCurrentUser().getEmail())
+                .orElseThrow(() -> new InvalidRequestException("Current user not found"));
+
+        List<ReceiptDTO> receiptDTOs = new ArrayList<>();
+        for (Receipt receipt : receiptRepository.findByCardLast4(last4))
+            if (currentUser.getRole().equals("ROLE_ADMIN") || receipt.getUser().getEmail().equals(currentUser.getEmail()))
+                receiptDTOs.add(convertToDTO(receipt));
+        return receiptDTOs;
+    }
+
     @Transactional
     public void deleteReceipt(String code) throws NotFoundException
     {

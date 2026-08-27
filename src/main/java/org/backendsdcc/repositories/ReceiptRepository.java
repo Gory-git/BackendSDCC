@@ -55,4 +55,6 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>
     List<Receipt> findReceiptByAmountEquals(BigDecimal amount);
 
     List<Receipt> findReceiptByAmountBetween(BigDecimal amount1, BigDecimal amount2);
+
+    List<Receipt> findByCardLast4(String cardLast4);
 }

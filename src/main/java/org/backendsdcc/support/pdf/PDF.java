@@ -71,6 +71,7 @@ public class PDF
         dto.setTax(receipt.getTax());
         dto.setDate(receipt.getDate());
         dto.setPaymentMethod(receipt.getPaymentMethod());
+        dto.setCardLast4(receipt.getCardLast4());
         dto.setUserEmail(receipt.getUser().getEmail());
 
         List<ReceiptLineDTO> lines = new ArrayList<>();
@@ -109,6 +110,11 @@ public class PDF
         p2.add(new Paragraph("TAX: " + currencySymbol + receipt.getTax(), COURIER_SMALL_FOOTER));
         p2.add(new Paragraph("TOTAL: " + currencySymbol + receipt.getAmount(), COURIER_SMALL_FOOTER));
         p2.add(new Paragraph("PAYMENT: " + receipt.getPaymentMethod(), COURIER_SMALL_FOOTER));
+        // Le ultime quattro cifre sulla stampa: e' quello che fanno gli
+        // scontrini veri, e non espone niente che il numero intero non
+        // esponga gia' (il numero intero non ce l'abbiamo).
+        if (receipt.getCardLast4() != null)
+            p2.add(new Paragraph("CARD: **** **** **** " + receipt.getCardLast4(), COURIER_SMALL_FOOTER));
         leaveEmptyLine(p2, 3);
 
         document.add(p2);

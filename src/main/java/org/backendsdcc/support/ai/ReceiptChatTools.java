@@ -120,6 +120,17 @@ public class ReceiptChatTools
                 () -> righeRicevute(receiptService.findByUserEmailLike(emailCliente, SOGLIA_FUZZY)));
     }
 
+    @Tool(description = "Cerca le ricevute pagate con una certa carta, date le ULTIME QUATTRO CIFRE. "
+            + "Non chiedere mai il numero completo della carta e non ripeterlo se l'utente lo scrive: "
+            + "servono e bastano le ultime quattro. Un cliente trova solo le proprie ricevute.")
+    public String cercaRicevutePerCarta(
+            @ToolParam(description = "Le ultime quattro cifre della carta, ad esempio '4242'")
+            String ultimeQuattroCifre)
+    {
+        return esegui("cercaRicevutePerCarta",
+                () -> righeRicevute(receiptService.findByCardLast4(ultimeQuattroCifre)));
+    }
+
     @Tool(description = "Restituisce il dettaglio completo di una singola ricevuta, comprese le righe dei "
             + "prodotti acquistati con quantita' e prezzo. Serve il codice esatto.")
     public String dettaglioRicevuta(
@@ -371,6 +382,7 @@ public class ReceiptChatTools
                 + " | " + receipt.getDate().atZone(ZoneOffset.UTC).toLocalDate()
                 + " | " + receipt.getAmount() + " EUR"
                 + " | " + receipt.getPaymentMethod()
+                + (receipt.getCardLast4() != null ? " (carta ****" + receipt.getCardLast4() + ")" : "")
                 + " | " + receipt.getUserEmail();
     }
 

@@ -17,6 +17,8 @@ public class ReceiptDTO
     private Instant date;
     private PaymentMethod paymentMethod;
     private String userEmail;
+    /** Ultime quattro cifre della carta, oppure null. Mai il numero completo. */
+    private String cardLast4;
     private List<ReceiptLineDTO> lines;
     private String s3Key;
 }

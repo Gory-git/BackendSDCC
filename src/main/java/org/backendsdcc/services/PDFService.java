@@ -88,6 +88,7 @@ public class PDFService
         receipt.setTax(receiptParsed.getTax());
         receipt.setAmount(receiptParsed.getAmount());
         receipt.setPaymentMethod(receiptParsed.getPaymentMethod());
+        receipt.setCardLast4(receiptParsed.getCardLast4());
         receiptRepository.save(receipt);
 
         for (ReceiptLineDTO line : receiptParsed.getLines())

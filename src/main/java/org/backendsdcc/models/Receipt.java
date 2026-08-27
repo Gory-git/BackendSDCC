@@ -39,6 +39,15 @@ public class Receipt
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    /**
+     * Le ultime quattro cifre della carta usata per pagare, quando si e' pagato
+     * con una carta. Mai il numero completo: vedi CardValidator per il perche'.
+     * Nullo per contante, bonifico e PayPal, e per le ricevute inserite prima
+     * che questo campo esistesse.
+     */
+    @Column(name = "card_last4", length = 4)
+    private String cardLast4;
+
     @Column(name = "s3_key", nullable = true)
     private String s3Key;
 

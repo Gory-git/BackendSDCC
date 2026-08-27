@@ -161,6 +161,26 @@ public class ReceiptController
         }
     }
 
+    /**
+     * Il parametro contiene solo le ultime quattro cifre: il frontend riduce il
+     * numero prima di chiamare, e il service lo rifa' comunque. Quattro cifre
+     * da sole non sono un numero di carta, quindi possono stare in una query
+     * string senza che i log del server diventino un problema.
+     */
+    @GetMapping("/find-by-card")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public ResponseEntity<?> getReceiptsByCard(@RequestParam("card") String card)
+    {
+        try
+        {
+            List<ReceiptDTO> receipts = receiptService.findByCardLast4(card);
+            return ResponseEntity.ok(receipts);
+        } catch (InvalidRequestException e)
+        {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Errore: " + e.getMessage());
+        }
+    }
+
     // ReceiptController.java
     @DeleteMapping("/{code}")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
