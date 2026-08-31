@@ -1,5 +1,6 @@
 package org.backendsdcc.services;
 
+import org.backendsdcc.support.ai.ChatRateLimiter;
 import org.backendsdcc.support.ai.ReceiptChatTools;
 import org.backendsdcc.support.dto.ChatMessageDTO;
 import org.backendsdcc.support.dto.UserDTO;
@@ -146,6 +147,8 @@ public class SmartQueryService
     private ReceiptChatTools tools;
     @Autowired
     private UserService userService;
+    @Autowired
+    private ChatRateLimiter rateLimiter;
 
     /**
      * Vale "missing" quando OPENAI_API_KEY non e' stata passata all'ambiente.
@@ -176,6 +179,10 @@ public class SmartQueryService
             throw new InvalidRequestException("La domanda e' troppo lunga: massimo " + MAX_CARATTERI_DOMANDA + " caratteri");
 
         UserDTO utente = userService.getCurrentUser();
+
+        // La domanda si paga a token: prima di chiamare il modello si controlla
+        // che l'utente non abbia gia' esaurito la quota di oggi.
+        rateLimiter.registraDomanda(utente.getEmail());
 
         ChatResponse risposta = client()
                 .prompt()

@@ -17,19 +17,26 @@
     {
       "Sid": "AccendereESpegnereSoloLIstanzaDelProgetto",
       "Effect": "Allow",
-      "Action": ["ec2:StartInstances", "ec2:StopInstances"],
-      "Resource": "arn:aws:ec2:eu-north-1:094028239135:instance/*",
+      "Action": [
+        "ec2:StartInstances",
+        "ec2:StopInstances"
+      ],
+      "Resource": "arn:aws:ec2:eu-north-1:<ACCOUNT_ID>:instance/*",
       "Condition": {
-        "StringEquals": { "aws:ResourceTag/Project": "ReceiptHub" }
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ReceiptHub"
+        }
       }
     },
     {
       "Sid": "ComandiManualiSoloSullIstanzaDelProgetto",
       "Effect": "Allow",
       "Action": "ssm:SendCommand",
-      "Resource": "arn:aws:ec2:eu-north-1:094028239135:instance/*",
+      "Resource": "arn:aws:ec2:eu-north-1:<ACCOUNT_ID>:instance/*",
       "Condition": {
-        "StringEquals": { "aws:ResourceTag/Project": "ReceiptHub" }
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ReceiptHub"
+        }
       }
     },
     {
@@ -37,6 +44,53 @@
       "Effect": "Allow",
       "Action": "ssm:SendCommand",
       "Resource": "arn:aws:ssm:eu-north-1::document/AWS-RunShellScript"
+    },
+    {
+      "Sid": "SessioneInterattivaSoloSullIstanzaDelProgetto",
+      "Effect": "Allow",
+      "Action": "ssm:StartSession",
+      "Resource": "arn:aws:ec2:eu-north-1:<ACCOUNT_ID>:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "ReceiptHub"
+        }
+      }
+    },
+    {
+      "Sid": "DocumentoUsatoDaStartSession",
+      "Effect": "Allow",
+      "Action": "ssm:StartSession",
+      "Resource": [
+        "arn:aws:ssm:eu-north-1:<ACCOUNT_ID>:document/SSM-SessionManagerRunShell",
+        "arn:aws:ssm:eu-north-1::document/SSM-SessionManagerRunShell"
+      ]
+    },
+    {
+      "Sid": "ChiudereLeProprieSessioni",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:TerminateSession",
+        "ssm:ResumeSession"
+      ],
+      "Resource": "arn:aws:ssm:*:*:session/${aws:username}-*"
+    },
+    {
+      "Sid": "VedereLoStatoDegliRDS",
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "VedereLeProprieChiaviIAM",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetUser",
+        "iam:ListAccessKeys"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:user/${aws:username}"
     }
   ]
 }

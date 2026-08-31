@@ -20,8 +20,8 @@
         "ecr:GetDownloadUrlForLayer"
       ],
       "Resource": [
-        "arn:aws:ecr:eu-north-1:094028239135:repository/receipthub-backend",
-        "arn:aws:ecr:eu-north-1:094028239135:repository/receipthub-frontend"
+        "arn:aws:ecr:eu-north-1:<ACCOUNT_ID>:repository/receipthub-backend",
+        "arn:aws:ecr:eu-north-1:<ACCOUNT_ID>:repository/receipthub-frontend"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "Effect": "Allow",
       "Action": "ssm:SendCommand",
       "Resource": [
-        "arn:aws:ec2:eu-north-1:094028239135:instance/i-0354f9b9b2e87d955",
+        "arn:aws:ec2:eu-north-1:<ACCOUNT_ID>:instance/<EC2_INSTANCE_ID>",
         "arn:aws:ssm:eu-north-1::document/AWS-RunShellScript"
       ]
     },

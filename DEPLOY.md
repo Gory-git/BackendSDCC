@@ -1,5 +1,10 @@
 # Deploy di ReceiptHub su AWS
 
+> **Segnaposto**: nei file di questa cartella e nelle policy in `deploy/iam/`,
+> `<ACCOUNT_ID>` e `<EC2_INSTANCE_ID>` vanno sostituiti con i valori reali del
+> proprio account prima di incollarli in console. Sono tenuti fuori dal
+> repository perche' identificano l'infrastruttura, non perche' siano segreti.
+
 Una sola istanza EC2 esegue quattro container via Docker Compose: **Caddy** (reverse proxy e
 certificati), **frontend** (Node, SSR), **backend** (Spring) e **Postgres**. Le immagini le
 costruisce GitHub Actions e le pubblica su ECR; l'istanza si aggiorna via SSM a ogni push su
@@ -40,7 +45,7 @@ Il frontend va costruito dal suo repository passando le `VITE_*` come build-arg,
 
 2. **Carica la configurazione su S3** (dal PC, serve la CLI configurata):
    ```
-   AWS_S3_BUCKET=backendsdcc-dev-files-001-094028239135-eu-north-1-an sh deploy/publish-config.sh
+   AWS_S3_BUCKET=backendsdcc-dev-files-001-<ACCOUNT_ID>-eu-north-1-an sh deploy/publish-config.sh
    ```
 
 3. **Ruolo IAM per l'istanza** — IAM → Roles → Create role → AWS service → EC2. Allega:

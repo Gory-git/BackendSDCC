@@ -5,13 +5,13 @@
       "Sid": "AccessoAlBucketDelleRicevute",
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-      "Resource": "arn:aws:s3:::backendsdcc-dev-files-001-094028239135-eu-north-1-an/*"
+      "Resource": "arn:aws:s3:::backendsdcc-dev-files-001-<ACCOUNT_ID>-eu-north-1-an/*"
     },
     {
       "Sid": "ElencoDelBucket",
       "Effect": "Allow",
       "Action": ["s3:ListBucket"],
-      "Resource": "arn:aws:s3:::backendsdcc-dev-files-001-094028239135-eu-north-1-an"
+      "Resource": "arn:aws:s3:::backendsdcc-dev-files-001-<ACCOUNT_ID>-eu-north-1-an"
     }
   ]
 }
