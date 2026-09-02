@@ -50,6 +50,18 @@ public class UserController
         return new ResponseEntity<>(userService.updateCurrentUser(userUpdateDTO), HttpStatus.OK);
     }
 
+    /**
+     * Modifica il profilo di un altro utente. L'email viaggia come parametro e non come
+     * variabile di percorso perché contiene un punto, che nel percorso richiederebbe di
+     * disattivare il troncamento dell'estensione; {@code /find} usa già lo stesso stile.
+     */
+    @PutMapping("/update-by-email")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity updateUserByEmail(@RequestParam String email, @RequestBody @Valid UserUpdateDTO userUpdateDTO)
+    {
+        return new ResponseEntity<>(userService.updateUserByEmail(email, userUpdateDTO), HttpStatus.OK);
+    }
+
     @GetMapping("/page")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity userInfo()

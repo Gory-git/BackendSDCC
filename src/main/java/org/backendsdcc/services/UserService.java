@@ -76,8 +76,32 @@ public class UserService
     @Transactional
     public UserDTO updateCurrentUser(UserUpdateDTO userUpdateDTO) throws NotFoundException, ConflictException, InvalidRequestException
     {
-        User user = getCurrentUserEntity();
+        return applyUpdate(getCurrentUserEntity(), userUpdateDTO);
+    }
 
+    /**
+     * Modifica il profilo di un altro utente, identificato dall'email. Riservato all'admin:
+     * l'autorizzazione sta sul controller, qui l'utente arriva già autorizzato.
+     *
+     * L'email non è modificabile e infatti non compare in {@link UserUpdateDTO}: è la chiave
+     * con cui si individua la riga, e cambiarla qui la disallineerebbe dall'account Firebase,
+     * che questo backend non amministra.
+     */
+    @Transactional
+    public UserDTO updateUserByEmail(String email, UserUpdateDTO userUpdateDTO) throws NotFoundException, ConflictException, InvalidRequestException
+    {
+        String target = trimToNull(email);
+        if (target == null)
+            throw new InvalidRequestException("Email is required");
+
+        User user = userRepository.findByEmail(target)
+                .orElseThrow(() -> new NotFoundException("User not found: " + target));
+
+        return applyUpdate(user, userUpdateDTO);
+    }
+
+    private UserDTO applyUpdate(User user, UserUpdateDTO userUpdateDTO) throws ConflictException, InvalidRequestException
+    {
         String name = trimToNull(userUpdateDTO.getName());
         String surname = trimToNull(userUpdateDTO.getSurname());
         if (name == null || surname == null)
