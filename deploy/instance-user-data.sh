@@ -4,7 +4,10 @@
 # stack. Non contiene segreti: le credenziali AWS arrivano dal ruolo IAM.
 set -euxo pipefail
 
-BUCKET="backendsdcc-dev-files-001-094028239135-eu-north-1-an"
+# Sostituire <ACCOUNT_ID> con l'ID del proprio account AWS prima di incollare
+# questo script nella console: il nome del bucket lo contiene, e per questo non
+# sta nel repository.
+BUCKET="backendsdcc-dev-files-001-<ACCOUNT_ID>-eu-north-1-an"
 APP_DIR=/opt/receipthub
 
 dnf update -y
@@ -33,6 +36,7 @@ chmod +x ./update.sh
 if [ ! -f .env ]; then
     cat > .env <<ENVEOF
 POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
+AWS_S3_BUCKET=$BUCKET
 SITE_ADDRESS=:80
 PUBLIC_ORIGIN=http://localhost
 BACKEND_IMAGE=nginx:alpine

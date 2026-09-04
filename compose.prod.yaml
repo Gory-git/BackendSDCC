@@ -39,7 +39,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?serve POSTGRES_PASSWORD nel file .env}
       APP_CORS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-sdcc-a2df9}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-backendsdcc-dev-files-001-094028239135-eu-north-1-an}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:?serve AWS_S3_BUCKET nel file .env}
       AWS_S3_REGION: ${AWS_S3_REGION:-eu-north-1}
       # Nessuna credenziale AWS: su EC2 le prende dal ruolo IAM dell'istanza.
       # In locale, per provare S3, si montano ~/.aws in sola lettura (vedi README).

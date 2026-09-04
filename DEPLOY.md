@@ -30,6 +30,9 @@ produzione il browser non fa richieste cross-origin e il CORS non entra in gioco
 
 ## Provare lo stack in locale
 
+Serve un `.env` (copiato da `.env.example`) con almeno `POSTGRES_PASSWORD` e `AWS_S3_BUCKET`:
+senza, compose si ferma subito invece di partire con valori sbagliati.
+
 ```
 docker build -t receipthub-backend:local .
 docker compose -f compose.prod.yaml -f compose.local.yaml up -d
@@ -74,7 +77,7 @@ Il frontend va costruito dal suo repository passando le `VITE_*` come build-arg,
    - **Tag `Project` = `ReceiptHub`**: non è decorativo, la policy del punto 4 lo usa come
      condizione per permettere accensione e spegnimento
    - Advanced details → User data: il contenuto di `deploy/instance-user-data.sh`,
-     già compilato col nome del bucket (nessuna modifica necessaria)
+     **sostituendo** `<ACCOUNT_ID>` nella riga `BUCKET=` con l'ID del proprio account
 
 7. Annota l'**Instance ID** (`i-...`): serve nei due passi successivi.
 
@@ -128,6 +131,9 @@ Finché non c'è il dominio della Fase 4, dopo ogni accensione va aggiornata la 
 Shell sull'istanza: EC2 → seleziona istanza → Connect → **Session Manager**.
 
 Log dei container: `sudo docker compose -f /opt/receipthub/compose.prod.yaml logs -f`.
+
+Su un'istanza creata prima che `AWS_S3_BUCKET` diventasse obbligatoria, aggiungila una volta a
+`/opt/receipthub/.env` (il bootstrap ora la scrive da solo) e rifai `docker compose up -d backend`.
 
 Se cambi `compose.prod.yaml` o il `Caddyfile`: rilancia `publish-config.sh` e ricopiali
 sull'istanza (`aws s3 cp` dalla shell SSM), poi `docker compose up -d`.
