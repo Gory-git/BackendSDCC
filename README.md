@@ -27,6 +27,7 @@ Progetto per il corso di **Sistemi Distribuiti e Cloud Computing**.
 - [Configurazione](#configurazione)
 - [API](#api)
 - [Autenticazione e ruoli](#autenticazione-e-ruoli)
+- [Sicurezza](#sicurezza)
 - [Il chatbot (RiceVito)](#il-chatbot-ricevito)
 - [Deploy](#deploy)
 - [Stato e limiti noti](#stato-e-limiti-noti)
@@ -293,6 +294,74 @@ Le password non arrivano mai al backend. Il flusso è:
 I permessi sono dichiarati con `@PreAuthorize` sui singoli metodi, così la regola sta accanto al
 codice che protegge invece che in un unico elenco lontano. La sessione è `STATELESS` e il CSRF
 disattivato, coerentemente con un'API a token.
+
+## Sicurezza
+
+### Il trasporto: tre salti, non uno
+
+Vale la pena distinguerli, perché "il frontend parla col backend in HTTP" è vero solo per uno dei
+tre, ed è quello che non lascia mai la macchina.
+
+| Salto | Protocollo | Note |
+|---|---|---|
+| Browser → Caddy | **HTTPS** | Certificato Let's Encrypt, richiesto e rinnovato da Caddy. Chi arriva su HTTP riceve un `308` verso HTTPS |
+| Frontend ↔ Backend | **HTTPS** | Stessa origine: le chiamate partono dal browser verso `/api/*` e viaggiano nel canale TLS del salto precedente |
+| Caddy → container | HTTP | Rete bridge interna alla singola istanza |
+
+Il secondo salto merita una precisazione, perché è quello che di solito si fraintende: **il
+frontend non chiama mai il backend da server**. Non c'è un solo `loader` né una `action` in tutta
+l'applicazione — il rendering lato server produce la pagina, ma ogni chiamata all'API parte dal
+browser dell'utente, con il token Firebase nell'header. Non esiste quindi una connessione
+frontend→backend separata che possa essere in chiaro: il token viaggia sempre dentro TLS.
+
+Il terzo salto è cifratura terminata al bordo (*TLS termination at the edge*), lo stesso schema di
+un Application Load Balancer o di nginx davanti a un'applicazione. Il traffico fra Caddy e i
+container resta dentro una rete bridge Docker sulla stessa EC2: non attraversa la rete, non esce
+dall'istanza. Nel `compose.prod.yaml` backend e frontend dichiarano `expose` e non `ports`, quindi
+le loro porte non sono pubblicate nemmeno sull'host.
+
+Per intercettare quel salto bisognerebbe già essere root sulla macchina — e chi lo è ha anche il
+`.env` con la password di Postgres, la chiave OpenAI e la memoria del processo Java. Cifrare fra i
+container proteggerebbe da un attaccante che ha già vinto, al prezzo di gestire certificati
+interni. In un deploy multi-host, dove il traffico attraversasse davvero il VPC, la conclusione
+sarebbe opposta.
+
+### HSTS
+
+Il redirect da HTTP a HTTPS non basta da solo: chi digita `receipthub.duckdns.org` senza schema
+manda comunque la prima richiesta in chiaro, e un attaccante sulla stessa rete può intercettarla e
+tenere la vittima su HTTP senza che il redirect scatti mai (*sslstrip*). L'header
+
+```
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+```
+
+chiude la finestra: dopo una visita riuscita in HTTPS, il browser si rifiuta di usare HTTP su quel
+dominio per un anno. È impostato nel `Caddyfile`. Manca volutamente `preload`: nella lista
+precaricata dei browser si entra in un attimo e si esce dopo mesi.
+
+### Superficie esposta
+
+- **Security group**: in ingresso solo `80` e `443`. La `22` è chiusa e non esiste coppia di
+  chiavi SSH; l'accesso alla macchina passa da AWS Session Manager.
+- **Postgres** non è raggiungibile dall'esterno: nessuna porta pubblicata, vive sulla rete interna
+  di Compose.
+- **I PDF** non sono serviti da URL pubblici ma da URL S3 firmati e a scadenza, generati su
+  richiesta di un utente autenticato.
+
+### Gestione dei segreti
+
+- **Nessuna chiave statica AWS in tutta la catena.** L'istanza usa il proprio ruolo IAM, GitHub
+  Actions assume un ruolo via OIDC. Non ci sono credenziali da ruotare né da revocare.
+- **La password di Postgres è generata sull'istanza al primo avvio** e non esce da lì: non passa
+  da S3, non passa da GitHub, non è mai stata scritta in un file del repository.
+- **`OPENAI_API_KEY` sta nel `.env` dell'istanza**, non fra i secret di GitHub: la pipeline non
+  trasporta segreti per costruzione.
+- **Le `VITE_*` del frontend non sono segrete** e stanno fra le *variables* di GitHub, non fra i
+  *secrets*: Vite le incorpora nel bundle servito al browser. La chiave web di Firebase è pubblica
+  per progetto — a proteggere l'account sono gli *authorized domains* e le regole.
+- **Niente segreti in `aws ssm send-command`**: il testo dei comandi resta nella cronologia SSM e
+  in CloudTrail. Per modificare il `.env` si usa una shell interattiva.
 
 ## Il chatbot (RiceVito)
 

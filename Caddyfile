@@ -4,6 +4,15 @@
 {$SITE_ADDRESS::80} {
 	encode gzip
 
+	# HSTS. Dopo la prima visita in HTTPS il browser si rifiuta di parlare HTTP con
+	# questo dominio: senza, la primissima richiesta di chi digita il nome senza
+	# "https://" parte comunque in chiaro e il redirect 308 e' aggirabile (sslstrip).
+	# In locale SITE_ADDRESS vale ":80" e l'header viaggia su HTTP: i browser lo
+	# ignorano per specifica, quindi lo sviluppo su localhost non si blocca.
+	# Niente "preload": nella lista precaricata dei browser si entra facilmente e
+	# si esce con mesi di attesa. Per un progetto didattico non ne vale la pena.
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
 	# L'API sotto /api, il resto al frontend: stessa origine, quindi in
 	# produzione il browser non fa nemmeno una preflight CORS.
 	handle /api/* {

@@ -136,7 +136,30 @@ Su un'istanza creata prima che `AWS_S3_BUCKET` diventasse obbligatoria, aggiungi
 `/opt/receipthub/.env` (il bootstrap ora la scrive da solo) e rifai `docker compose up -d backend`.
 
 Se cambi `compose.prod.yaml` o il `Caddyfile`: rilancia `publish-config.sh` e ricopiali
-sull'istanza (`aws s3 cp` dalla shell SSM), poi `docker compose up -d`.
+sull'istanza (`aws s3 cp` dalla shell SSM). Poi però i due file si comportano in modo diverso:
+
+- **`compose.prod.yaml`** lo legge la CLI di Compose sull'host, quindi basta `docker compose up -d`.
+- **Il `Caddyfile` è bind-montato come singolo file** dentro il container
+  (`./Caddyfile:/etc/caddy/Caddyfile:ro`). `aws s3 cp` non riscrive il file: ne crea uno nuovo e lo
+  rinomina sopra, quindi **cambia l'inode**, e il mount del container resta agganciato a quello
+  vecchio. Risultato: il file sull'host è aggiornato, quello dentro il container no. Serve
+  `docker compose up -d --force-recreate caddy` (un paio di secondi di interruzione, Caddy è
+  l'unico punto d'ingresso).
+
+Il sintomo inganna: `caddy validate` risponde `Valid configuration` e `caddy reload` riesce senza
+errori, perché leggono e ricaricano entrambi la **vecchia** configurazione, che è validissima.
+Ogni comando ha successo e non cambia niente. Non fidarsi dell'esito dei comandi, verificare
+l'effetto:
+
+```
+curl -sI https://receipthub.duckdns.org/ | grep -i strict-transport
+```
+
+Stesso discorso per ogni altro file montato singolarmente. Chi volesse evitare del tutto il
+problema può scrivere il contenuto *dentro* il file esistente invece di sostituirlo
+(`aws s3 cp ... /tmp/x && cat /tmp/x > Caddyfile`): così l'inode non cambia e il container vede
+subito la modifica, senza ricreare niente. Ma funziona solo se lo si fa da subito: una volta che
+l'inode è già stato sostituito, il container punta a un file che dal percorso non si raggiunge più.
 
 ## Fase 4 — Dominio e HTTPS
 
